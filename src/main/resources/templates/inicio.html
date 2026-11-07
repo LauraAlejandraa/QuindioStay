@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Inicio')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3">Hola, <span th:text="${sesion.nombreMostrar}"></span></h1>
+  <p class="text-muted" th:text="'Entró como ' + ${sesion.rol} + (${sesion.nombrePrestador != null} ? ' de ' + ${sesion.nombrePrestador} : '') + '.'"></p>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+
+  <div class="row g-3 mb-4" th:if="${resumen != null and !sesion.cliente}">
+    <div class="col-6 col-md-2" th:each="k : ${ {'reservas','pendientes','boletas','clientes','funciones'} }">
+      <div class="card card-inicio shadow-sm"><div class="card-body py-2">
+        <div class="small text-muted" th:text="${k == 'funciones' ? 'funciones por venir' : (k == 'boletas' ? 'boletas no anuladas' : k)}"></div>
+        <div class="h4 mb-0" th:text="${resumen[k]}"></div></div></div>
+    </div>
+    <div class="col-12 col-md-2">
+      <div class="card card-inicio shadow-sm"><div class="card-body py-2">
+        <div class="small text-muted">pagos exitosos</div>
+        <div class="h5 mb-0" th:text="${'$' + #numbers.formatDecimal(resumen.ingresos, 1, 'POINT', 0, 'COMMA')}"></div></div></div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4" th:if="${sesion.admin or sesion.operador or sesion.cliente}">
+      <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/venta}"><div class="card-body">
+        <h2 class="h5 text-dark" th:text="${sesion.cliente} ? 'Comprar boletas' : 'Vender boletas'"></h2>
+        <p class="text-muted mb-0">Escoja la función, la zona y el tipo de entrada. Se revisan el aforo, la regla del niño con adulto y el plan vigente.</p></div></a>
+    </div>
+    <div class="col-md-4" th:if="${sesion.admin or sesion.operador or sesion.cliente}">
+      <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/venta/combo}"><div class="card-body">
+        <h2 class="h5 text-dark">Combos</h2>
+        <p class="text-muted mb-0">Entradas a varias atracciones con precio especial, cada una en el día que escoja.</p></div></a>
+    </div>
+    <div class="col-md-4" th:if="${sesion.admin or sesion.operador}">
+      <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/taquilla}"><div class="card-body">
+        <h2 class="h5 text-dark">Taquilla</h2>
+        <p class="text-muted mb-0">Validar boletas por su código el día de la función.</p></div></a>
+    </div>
+    <div class="col-md-4" th:if="${sesion.admin}">
+      <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/reportes}"><div class="card-body">
+        <h2 class="h5 text-dark">Reportes</h2>
+        <p class="text-muted mb-0">Los 10 reportes del sistema, con exportación a PDF y gráficos.</p></div></a>
+    </div>
+    <div class="col-md-4" th:if="${sesion.encargado}">
+      <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/funciones}"><div class="card-body">
+        <h2 class="h5 text-dark">Funciones y zonas</h2>
+        <p class="text-muted mb-0">Programe las funciones de sus atracciones y el aforo de cada zona.</p></div></a>
+    </div>
+    <div class="col-md-4" th:if="${sesion.cliente}">
+      <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/mi-cuenta/reservas}"><div class="card-body">
+        <h2 class="h5 text-dark">Mis reservas</h2>
+        <p class="text-muted mb-0">Pague, cancele y descargue sus comprobantes, factura y boletas.</p></div></a>
+    </div>
+    <div class="col-md-4" th:if="${sesion.cliente}">
+      <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/mi-cuenta/perfil}"><div class="card-body">
+        <h2 class="h5 text-dark">Mi perfil</h2>
+        <p class="text-muted mb-0">Datos personales, canal e idioma de las notificaciones y promociones.</p></div></a>
+    </div>
+  </div>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

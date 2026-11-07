@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Clientes')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idCliente == null} ? 'Nuevo registro · cliente' : 'Editar cliente #' + ${obj.idCliente}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/clientes/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idCliente}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="primerNombre">Primer nombre <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{primerNombre}" maxlength="40" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="segundoNombre">Segundo nombre</label>
+        <input type="text" class="form-control" th:field="*{segundoNombre}" maxlength="40">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="primerApellido">Primer apellido <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{primerApellido}" maxlength="40" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="segundoApellido">Segundo apellido</label>
+        <input type="text" class="form-control" th:field="*{segundoApellido}" maxlength="40">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="tipoDocumento">Tipo de documento <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{tipoDocumento}" required><option th:each="v : ${ {'cédula de ciudadanía', 'cédula de extranjería', 'pasaporte', 'tarjeta de identidad'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="numeroDocumento">Número de documento <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{numeroDocumento}" maxlength="20" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="email">Correo <span class="text-danger">*</span></label>
+        <input type="email" class="form-control" th:field="*{email}" maxlength="100" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="telefono">Teléfono <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{telefono}" maxlength="15" pattern="[0-9]{7,15}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="fechaNacimiento">Fecha de nacimiento <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" th:field="*{fechaNacimiento}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="ciudadOrigen">Ciudad de origen <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{ciudadOrigen}" maxlength="60" required>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/clientes}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

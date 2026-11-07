@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Tipos de prestador')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container-fluid px-4 py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Tipos de prestador</h1>
+    <a class="btn btn-success" th:href="@{/tipos-prestador/nuevo}">+ Nuevo</a>
+  </div>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <input class="form-control mb-2 buscador" placeholder="Buscar en la tabla..." data-tabla="tabla">
+  <div class="table-responsive">
+    <table id="tabla" class="table table-sm table-hover align-middle tabla-paginada">
+      <thead class="table-success">
+        <tr><th>ID</th><th>Nombre</th><th class="text-end">Acciones</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="x : ${lista}">
+          <td th:text="${x.idTipoPrestador}"></td>
+          <td th:text="${x.nombre}"></td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" th:href="@{/tipos-prestador/{id}/editar(id=${x.idTipoPrestador})}">Editar</a>
+            <form th:action="@{/tipos-prestador/{id}/eliminar(id=${x.idTipoPrestador})}" method="post" class="d-inline"
+                  onsubmit="return confirm('¿Seguro? Esta acción: eliminar.');">
+              <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Reportes')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3">Reportes</h1>
+  <p class="text-muted">3 simples, 4 intermedios y 3 avanzados. Todos se exportan a PDF; los reportes 6, 9 y 10 llevan gráfico de barras.</p>
+  <div class="row g-3">
+    <div class="col-md-6" th:each="r : ${reportes}">
+      <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/reportes/{n}(n=${r.numero})}"><div class="card-body">
+        <h2 class="h6 text-dark"><span th:text="'Reporte ' + ${r.numero} + '. ' + ${r.titulo}"></span>
+          <span class="badge bg-secondary ms-1" th:text="${r.nivel}"></span>
+          <span class="badge bg-success" th:if="${r.grafico}">gráfico</span></h2>
+        <p class="text-muted small mb-0" th:text="${r.pregunta}"></p></div></a>
+    </div>
+  </div>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

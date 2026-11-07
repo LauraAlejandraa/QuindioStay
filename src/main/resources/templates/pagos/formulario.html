@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Pagos')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idPago == null} ? 'Nuevo registro · pago' : 'Editar pago #' + ${obj.idPago}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/pagos/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idPago}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="fecha">Fecha <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" th:field="*{fecha}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="monto">Monto <span class="text-danger">*</span></label>
+        <input type="number" class="form-control" th:field="*{monto}" step="0.01" min="1" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="metodo">Método <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{metodo}" required><option th:each="v : ${ {'tarjeta de crédito', 'tarjeta débito', 'PSE', 'transferencia', 'efectivo'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="estado">Estado <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${ {'exitoso', 'fallido', 'pendiente', 'reembolsado'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="referenciaTransaccion">Referencia de transacción</label>
+        <input type="text" class="form-control" th:field="*{referenciaTransaccion}" maxlength="50">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idReserva">Reserva <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idReserva}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcReserva}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/pagos}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

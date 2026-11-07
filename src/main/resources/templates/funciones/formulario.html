@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Funciones')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idFuncion == null} ? 'Nuevo registro · función' : 'Editar función #' + ${obj.idFuncion}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/funciones/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idFuncion}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="fecha">Fecha <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" th:field="*{fecha}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="horaApertura">Hora de apertura <span class="text-danger">*</span></label>
+        <input type="time" class="form-control" th:field="*{horaApertura}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="horaCierre">Hora de cierre <span class="text-danger">*</span></label>
+        <input type="time" class="form-control" th:field="*{horaCierre}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="estado">Estado <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${ {'programada', 'cancelada', 'realizada'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idAtraccion">Atracción <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idAtraccion}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcAtraccion}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/funciones}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

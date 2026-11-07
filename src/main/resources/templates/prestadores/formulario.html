@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Prestadores')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idPrestador == null} ? 'Nuevo registro · prestador' : 'Editar prestador #' + ${obj.idPrestador}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/prestadores/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idPrestador}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="nombreComercial">Nombre comercial <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{nombreComercial}" maxlength="100" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="nitDocumento">NIT o documento <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{nitDocumento}" maxlength="20" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="rnt">RNT <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{rnt}" maxlength="20" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="direccion">Dirección <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{direccion}" maxlength="150" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="telefono">Teléfono <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{telefono}" maxlength="15" pattern="[0-9]{7,15}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="correo">Correo <span class="text-danger">*</span></label>
+        <input type="email" class="form-control" th:field="*{correo}" maxlength="100" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="estado">Estado <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${ {'activo', 'suspendido', 'retirado'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idMunicipio">Municipio <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idMunicipio}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcMunicipio}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idTipoPrestador">Tipo de prestador <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idTipoPrestador}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcTipoPrestador}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/prestadores}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

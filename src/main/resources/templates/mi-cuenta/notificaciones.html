@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Mis notificaciones')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3">Mis notificaciones</h1>
+  <p class="text-muted">Historial de recordatorios, confirmaciones, cambios de estado y promociones (el envío es simulado).</p>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <table id="tabla" class="table table-sm bg-white tabla-paginada align-middle">
+    <thead class="table-success"><tr><th>Fecha</th><th>Tipo</th><th>Canal</th><th>Mensaje</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+      <tr th:each="n : ${lista}">
+        <td th:text="${#temporals.format(n.fecha_programada, 'dd/MM/yyyy HH:mm')}"></td>
+        <td th:text="${n.tipo}"></td><td th:text="${n.canal}"></td><td th:text="${n.mensaje}"></td>
+        <td><span class="badge estado" th:text="${n.estado}"></span></td>
+        <td><form th:if="${n.estado == 'enviada'}" th:action="@{/mi-cuenta/notificaciones/{id}/leida(id=${n.id_notificacion})}" method="post">
+          <button class="btn btn-sm btn-outline-secondary">Marcar leída</button></form></td>
+      </tr>
+    </tbody>
+  </table>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

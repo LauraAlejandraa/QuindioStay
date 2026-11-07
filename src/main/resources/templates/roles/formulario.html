@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Roles')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idRol == null} ? 'Nuevo registro · rol' : 'Editar rol #' + ${obj.idRol}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/roles/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idRol}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="nombre">Nombre <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{nombre}" required><option th:each="v : ${ {'administrador de la plataforma', 'encargado de prestador', 'operador'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/roles}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

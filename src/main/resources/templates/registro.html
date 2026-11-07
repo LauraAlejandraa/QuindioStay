@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Registro')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3">Crear cuenta de cliente</h1>
+  <p class="text-muted">Se guardan juntos el cliente, su cuenta y su perfil (una sola transacción).</p>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/registro}" method="post" class="card card-body shadow-sm">
+    <h2 class="h5">Datos básicos</h2>
+    <div class="row" th:object="${cliente}">
+      <div class="col-md-3 mb-3"><label class="form-label">Primer nombre *</label>
+        <input class="form-control" th:field="*{primerNombre}" required maxlength="40"></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Segundo nombre</label>
+        <input class="form-control" th:field="*{segundoNombre}" maxlength="40"></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Primer apellido *</label>
+        <input class="form-control" th:field="*{primerApellido}" required maxlength="40"></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Segundo apellido</label>
+        <input class="form-control" th:field="*{segundoApellido}" maxlength="40"></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Tipo de documento *</label>
+        <select class="form-select" th:field="*{tipoDocumento}" required>
+          <option th:each="v : ${ {'cédula de ciudadanía','cédula de extranjería','pasaporte','tarjeta de identidad'} }" th:value="${v}" th:text="${v}"></option>
+        </select></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Número de documento *</label>
+        <input class="form-control" th:field="*{numeroDocumento}" required maxlength="20"></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Fecha de nacimiento *</label>
+        <input type="date" class="form-control" th:field="*{fechaNacimiento}" required></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Ciudad de origen *</label>
+        <input class="form-control" th:field="*{ciudadOrigen}" required maxlength="60"></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Correo (será su usuario) *</label>
+        <input type="email" class="form-control" th:field="*{email}" required maxlength="100"></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Teléfono *</label>
+        <input class="form-control" th:field="*{telefono}" required pattern="[0-9]{7,15}" title="Solo dígitos, entre 7 y 15"></div>
+    </div>
+    <h2 class="h5">Contraseña</h2>
+    <div class="row">
+      <div class="col-md-6 mb-3"><label class="form-label">Contraseña * (mínimo 8 caracteres)</label>
+        <input type="password" class="form-control" name="contrasena" required minlength="8"></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Repita la contraseña *</label>
+        <input type="password" class="form-control" name="confirmacion" required minlength="8"></div>
+    </div>
+    <h2 class="h5">Preferencias (perfil)</h2>
+    <div class="row" th:object="${perfil}">
+      <div class="col-md-3 mb-3"><label class="form-label">Idioma</label>
+        <select class="form-select" th:field="*{idioma}"><option th:each="v : ${ {'español','inglés'} }" th:value="${v}" th:text="${v}"></option></select></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Canal de notificaciones</label>
+        <select class="form-select" th:field="*{canalPreferido}"><option th:each="v : ${ {'correo','SMS','WhatsApp'} }" th:value="${v}" th:text="${v}"></option></select></div>
+      <div class="col-md-3 mb-3"><label class="form-label">Recordatorio (días antes)</label>
+        <select class="form-select" th:field="*{anticipacionRecordatorio}"><option th:each="v : ${ {1,3,7} }" th:value="${v}" th:text="${v}"></option></select></div>
+      <div class="col-md-3 mb-3"><label class="form-label">¿Acepta promociones?</label>
+        <select class="form-select" th:field="*{aceptaPromociones}"><option th:each="v : ${ {'sí','no'} }" th:value="${v}" th:text="${v}"></option></select></div>
+    </div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="habeas" required>
+      <label class="form-check-label" for="habeas">Autorizo el tratamiento de mis datos personales (Ley 1581 de 2012).</label>
+    </div>
+    <div>
+      <button class="btn btn-success">Crear cuenta</button>
+      <a class="btn btn-outline-secondary" th:href="@{/login}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

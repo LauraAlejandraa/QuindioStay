@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Iniciar sesión')}"></head>
+<body class="login-fondo d-flex align-items-center">
+<main class="container">
+  <div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+      <div class="card shadow-lg border-0">
+        <div class="card-body p-4">
+          <h1 class="h3 text-center fw-bold" style="color:#1f6f43">QuindíoStay</h1>
+          <p class="text-center text-muted small">Plataforma de turismo del Quindío · Boletería y eventos</p>
+          <div th:replace="~{fragmentos :: mensajes}"></div>
+          <form th:action="@{/login}" method="post">
+            <div class="mb-3">
+              <label class="form-label" for="usuario">Usuario o correo</label>
+              <input class="form-control" id="usuario" name="usuario" th:value="${usuario}" required autofocus
+                     placeholder="admin  ó  cliente@correo.com">
+              <div class="form-text">Clientes: su correo. Usuarios internos: su nombre de usuario.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="contrasena">Contraseña</label>
+              <input type="password" class="form-control" id="contrasena" name="contrasena" required>
+            </div>
+            <button class="btn btn-success w-100">Ingresar</button>
+          </form>
+          <hr>
+          <p class="text-center mb-0 small">¿Cliente nuevo? <a th:href="@{/registro}">Registrarse</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

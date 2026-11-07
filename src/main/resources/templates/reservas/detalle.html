@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Detalle de reserva')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4" th:with="puedeOperar=${!sesion.encargado}, abierta=${r.estado_reserva == 'pendiente' or r.estado_reserva == 'confirmada'}">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="h3 mb-0">Reserva #<span th:text="${r.id_reserva}"></span>
+      <span class="badge estado fs-6" th:text="${r.estado_reserva}"></span></h1>
+    <div class="btn-group flex-wrap">
+      <a class="btn btn-outline-dark btn-sm" th:href="@{/plantillas/reserva/{id}(id=${r.id_reserva})}" target="_blank">Comprobante de reserva</a>
+      <a class="btn btn-outline-dark btn-sm" th:href="@{/plantillas/factura/{id}(id=${r.id_reserva})}" target="_blank">Factura</a>
+      <a class="btn btn-outline-dark btn-sm" th:href="@{/plantillas/boletas/{id}(id=${r.id_reserva})}" target="_blank">Boletas</a>
+      <a class="btn btn-outline-dark btn-sm" th:href="@{/plantillas/autorizacion/{id}(id=${r.id_cliente})}" target="_blank">Autorización de datos</a>
+    </div>
+  </div>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h2 class="h5">Datos de la reserva</h2>
+        <table class="table table-sm mb-0">
+          <tr><th>Cliente</th><td th:text="${r.cliente} + ' · ' + ${r.tipo_documento} + ' ' + ${r.numero_documento}"></td></tr>
+          <tr><th>Contacto</th><td th:text="${r.email} + ' · ' + ${r.telefono}"></td></tr>
+          <tr><th>Plan</th><td th:text="${r.plan} + ' (' + ${r.tipo_plan} + ')'"></td></tr>
+          <tr><th>Prestador</th><td th:text="${r.prestador} + ' · ' + ${r.municipio_prestador}"></td></tr>
+          <tr><th>Creada</th><td th:text="${#dates.format(r.fecha_creacion, 'dd/MM/yyyy')}"></td></tr>
+          <tr><th>Fecha del servicio</th><td th:text="${#dates.format(r.fecha_servicio, 'dd/MM/yyyy')}"></td></tr>
+          <tr><th>Canal</th><td th:text="${r.canal}"></td></tr>
+        </table>
+      </div></div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h2 class="h5">Pago</h2>
+        <table class="table table-sm">
+          <tr><th>Valor total</th><td class="text-end" th:text="${'$' + #numbers.formatDecimal(r.valor_total, 1, 'POINT', 0, 'COMMA')}"></td></tr>
+          <tr><th>Pagado (exitoso)</th><td class="text-end" th:text="${'$' + #numbers.formatDecimal(r.total_pagado, 1, 'POINT', 0, 'COMMA')}"></td></tr>
+          <tr><th>Saldo</th><td class="text-end fw-bold" th:text="${'$' + #numbers.formatDecimal(r.saldo, 1, 'POINT', 0, 'COMMA')}"></td></tr>
+          <tr><th>¿Pagada?</th><td class="text-end" th:text="${r.pagada}"></td></tr>
+        </table>
+
+        <!-- Pasarela simulada -->
+        <form th:if="${abierta and r.saldo > 0 and (puedeOperar)}" th:action="@{${base} + '/' + ${r.id_reserva} + '/pagar'}" method="post" class="border rounded p-2 bg-light">
+          <div class="fw-semibold mb-1">Registrar pago o abono <small class="text-muted">(pasarela simulada)</small></div>
+          <div class="row g-2">
+            <div class="col-6"><input type="number" name="monto" class="form-control form-control-sm" min="1" step="0.01" th:max="${r.saldo}" th:value="${r.saldo}" required></div>
+            <div class="col-6"><select name="metodo" class="form-select form-select-sm">
+              <option th:each="v : ${ {'tarjeta de crédito','tarjeta débito','PSE','transferencia','efectivo'} }" th:value="${v}" th:text="${v}"></option></select></div>
+            <div class="col-12"><select name="resultado" class="form-select form-select-sm">
+              <option value="exitoso">Simular pago aprobado</option>
+              <option value="fallido">Simular pago rechazado</option></select></div>
+          </div>
+          <button class="btn btn-success btn-sm mt-2 w-100">Pagar</button>
+        </form>
+
+        <div class="mt-2 d-flex gap-2 flex-wrap" th:if="${puedeOperar and base == '/reservas'}">
+          <form th:if="${r.estado_reserva == 'pendiente'}" th:action="@{/reservas/{id}/estado(id=${r.id_reserva})}" method="post">
+            <input type="hidden" name="estado" value="confirmada"><button class="btn btn-outline-success btn-sm">Confirmar</button></form>
+          <form th:if="${r.estado_reserva == 'confirmada'}" th:action="@{/reservas/{id}/estado(id=${r.id_reserva})}" method="post">
+            <input type="hidden" name="estado" value="completada"><button class="btn btn-outline-primary btn-sm">Marcar completada</button></form>
+        </div>
+        <form th:if="${abierta and puedeOperar}" th:action="@{${base} + '/' + ${r.id_reserva} + '/cancelar'}" method="post" class="mt-2"
+              th:attr="onsubmit=|return confirm('¿Cancelar la reserva? Sus boletas se anulan. Reembolso si cancela hoy: $${#numbers.formatDecimal(r.reembolsoSiCancela, 1, 'POINT', 0, 'COMMA')}');|">
+          <button class="btn btn-outline-danger btn-sm">Cancelar reserva</button>
+          <span class="small text-muted ms-1" th:text="'Reembolso si cancela hoy: $' + ${#numbers.formatDecimal(r.reembolsoSiCancela, 1, 'POINT', 0, 'COMMA')} + ' (80 % si faltan más de 5 días)'"></span>
+        </form>
+      </div></div>
+    </div>
+  </div>
+
+  <h2 class="h5 mt-4">Boletas</h2>
+  <div class="table-responsive"><table class="table table-sm table-hover bg-white">
+    <thead class="table-success"><tr><th>Código</th><th>Atracción</th><th>Función</th><th>Zona</th><th>Tipo</th><th>Combo</th><th class="text-end">Valor</th><th>Estado</th></tr></thead>
+    <tbody><tr th:each="b : ${r.boletas}">
+      <td th:text="${b.codigo}"></td><td th:text="${b.atraccion}"></td>
+      <td th:text="${#dates.format(b.fecha_funcion, 'dd/MM/yyyy')} + ' ' + ${b.hora_apertura}"></td>
+      <td th:text="${b.zona}"></td><td th:text="${b.tipo_entrada}"></td><td th:text="${b.combo}"></td>
+      <td class="text-end" th:text="${b.valor_boleta == null ? 'en combo' : '$' + #numbers.formatDecimal(b.valor_boleta, 1, 'POINT', 0, 'COMMA')}"></td>
+      <td><span class="badge estado" th:text="${b.estado_boleta}"></span></td>
+    </tr></tbody>
+  </table></div>
+
+  <h2 class="h5 mt-3">Pagos</h2>
+  <table class="table table-sm bg-white">
+    <thead class="table-success"><tr><th>#</th><th>Fecha</th><th>Método</th><th>Referencia</th><th class="text-end">Monto</th><th>Estado</th><th></th></tr></thead>
+    <tbody><tr th:each="p : ${r.pagos}">
+      <td th:text="${p.id_pago}"></td><td th:text="${#dates.format(p.fecha, 'dd/MM/yyyy')}"></td>
+      <td th:text="${p.metodo}"></td><td th:text="${p.referencia_transaccion}"></td>
+      <td class="text-end" th:text="${'$' + #numbers.formatDecimal(p.monto, 1, 'POINT', 0, 'COMMA')}"></td>
+      <td><span class="badge estado" th:text="${p.estado}"></span></td>
+      <td><a class="btn btn-sm btn-outline-dark" th:href="@{/plantillas/pago/{id}(id=${p.id_pago})}" target="_blank">Comprobante</a></td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(r.pagos)}"><td colspan="7" class="text-muted">Sin pagos todavía.</td></tr></tbody>
+  </table>
+
+  <h2 class="h5 mt-3">Notificaciones de la reserva</h2>
+  <table class="table table-sm bg-white">
+    <thead class="table-success"><tr><th>Tipo</th><th>Canal</th><th>Mensaje</th><th>Programada</th><th>Estado</th></tr></thead>
+    <tbody><tr th:each="n : ${r.notificaciones}">
+      <td th:text="${n.tipo}"></td><td th:text="${n.canal}"></td><td th:text="${n.mensaje}"></td>
+      <td th:text="${#temporals.format(n.fecha_programada, 'dd/MM/yyyy HH:mm')}"></td>
+      <td><span class="badge estado" th:text="${n.estado}"></span></td>
+    </tr></tbody>
+  </table>
+  <a class="btn btn-outline-secondary" th:href="@{${base}}">Volver</a>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

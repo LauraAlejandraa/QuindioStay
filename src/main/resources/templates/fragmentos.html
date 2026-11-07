@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<!-- Fragmentos que comparten todas las pantallas: encabezado, menú, mensajes y scripts -->
+<head th:fragment="head(titulo)">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${titulo} + ' · QuindíoStay'">QuindíoStay</title>
+  <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.3/css/bootstrap.min.css}">
+  <link rel="stylesheet" th:href="@{/css/estilos.css}">
+</head>
+<body>
+
+<nav th:fragment="menu" class="navbar navbar-expand-lg navbar-dark barra-qs">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" th:href="@{/inicio}">QuindíoStay</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menuQs">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="menuQs" th:if="${sesion != null}">
+      <ul class="navbar-nav me-auto">
+
+        <!-- Administrador: ve todo -->
+        <th:block th:if="${sesion.admin}">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Catálogos</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" th:href="@{/municipios}">Municipios</a></li>
+              <li><a class="dropdown-item" th:href="@{/tipos-prestador}">Tipos de prestador</a></li>
+              <li><a class="dropdown-item" th:href="@{/roles}">Roles</a></li>
+              <li><a class="dropdown-item" th:href="@{/tipos-entrada}">Tipos de entrada</a></li>
+            </ul>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Núcleo</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" th:href="@{/prestadores}">Prestadores</a></li>
+              <li><a class="dropdown-item" th:href="@{/planes}">Planes</a></li>
+              <li><a class="dropdown-item" th:href="@{/clientes}">Clientes</a></li>
+              <li><a class="dropdown-item" th:href="@{/cuentas}">Cuentas de clientes</a></li>
+              <li><a class="dropdown-item" th:href="@{/perfiles}">Perfiles de clientes</a></li>
+              <li><a class="dropdown-item" th:href="@{/usuarios}">Usuarios del sistema</a></li>
+              <li><a class="dropdown-item" th:href="@{/notificaciones}">Notificaciones</a></li>
+            </ul>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Boletería</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" th:href="@{/atracciones}">Atracciones</a></li>
+              <li><a class="dropdown-item" th:href="@{/afiliaciones}">Prestadores por atracción</a></li>
+              <li><a class="dropdown-item" th:href="@{/funciones}">Funciones</a></li>
+              <li><a class="dropdown-item" th:href="@{/zonas}">Zonas</a></li>
+              <li><a class="dropdown-item" th:href="@{/combos}">Combos</a></li>
+              <li><a class="dropdown-item" th:href="@{/combo-atracciones}">Atracciones de los combos</a></li>
+            </ul>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Ventas</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" th:href="@{/venta}">Vender boletas</a></li>
+              <li><a class="dropdown-item" th:href="@{/venta/combo}">Vender combo</a></li>
+              <li><a class="dropdown-item" th:href="@{/reservas}">Reservas</a></li>
+              <li><a class="dropdown-item" th:href="@{/pagos}">Pagos</a></li>
+              <li><a class="dropdown-item" th:href="@{/boletas}">Boletas</a></li>
+              <li><a class="dropdown-item" th:href="@{/taquilla}">Taquilla (validar boletas)</a></li>
+            </ul>
+          </li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/reportes}">Reportes</a></li>
+        </th:block>
+
+        <!-- Encargado de prestador: solo lo de su prestador -->
+        <th:block th:if="${sesion.encargado}">
+          <li class="nav-item"><a class="nav-link" th:href="@{/atracciones}">Mis atracciones</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/funciones}">Funciones</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/zonas}">Zonas</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/planes}">Planes</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/reservas}">Reservas</a></li>
+        </th:block>
+
+        <!-- Operador: vende y valida boletas -->
+        <th:block th:if="${sesion.operador}">
+          <li class="nav-item"><a class="nav-link" th:href="@{/venta}">Vender boletas</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/venta/combo}">Vender combo</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/taquilla}">Taquilla</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/reservas}">Reservas</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/pagos}">Pagos</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/boletas}">Boletas</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/clientes}">Clientes</a></li>
+        </th:block>
+
+        <!-- Cliente: su perfil, sus reservas, sus pagos y sus notificaciones -->
+        <th:block th:if="${sesion.cliente}">
+          <li class="nav-item"><a class="nav-link" th:href="@{/venta}">Comprar boletas</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/venta/combo}">Comprar combo</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/mi-cuenta/reservas}">Mis reservas</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/mi-cuenta/notificaciones}">Mis notificaciones</a></li>
+          <li class="nav-item"><a class="nav-link" th:href="@{/mi-cuenta/perfil}">Mi perfil</a></li>
+        </th:block>
+      </ul>
+      <span class="navbar-text text-white me-3 small">
+        <span th:text="${sesion.nombreMostrar}"></span> ·
+        <em th:text="${sesion.rol}"></em>
+        <span th:if="${sesion.nombrePrestador != null}" th:text="'(' + ${sesion.nombrePrestador} + ')'"></span>
+      </span>
+      <a class="btn btn-sm btn-outline-light" th:href="@{/logout}">Salir</a>
+    </div>
+  </div>
+</nav>
+
+<div th:fragment="mensajes">
+  <div class="alert alert-success alert-dismissible fade show" th:if="${exito}">
+    <span th:text="${exito}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  <div class="alert alert-danger alert-dismissible fade show" th:if="${error}">
+    <span th:text="${error}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+</div>
+
+<th:block th:fragment="scripts">
+  <script th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}"></script>
+  <script th:src="@{/js/tablas.js}"></script>
+</th:block>
+</body>
+</html>

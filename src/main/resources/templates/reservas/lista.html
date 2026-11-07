@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Reservas')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container-fluid px-4 py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Reservas <small class="text-muted fs-6" th:if="${sesion.encargado}" th:text="'de ' + ${sesion.nombrePrestador}"></small></h1>
+    <a class="btn btn-success" th:unless="${sesion.encargado}" th:href="@{/venta}">+ Nueva (vender boletas)</a>
+  </div>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <input class="form-control mb-2 buscador" placeholder="Buscar por cliente, estado, fecha, canal..." data-tabla="tabla">
+  <div class="table-responsive">
+    <table id="tabla" class="table table-sm table-hover align-middle tabla-paginada">
+      <thead class="table-success">
+        <tr><th>#</th><th>Creada</th><th>Servicio</th><th>Estado</th><th class="text-end">Valor total</th><th>Canal</th><th>Cliente</th><th>Plan</th><th class="text-end">Acciones</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="x : ${lista}">
+          <td th:text="${x.idReserva}"></td>
+          <td th:text="${#temporals.format(x.fechaCreacion, 'dd/MM/yyyy')}"></td>
+          <td th:text="${#temporals.format(x.fechaServicio, 'dd/MM/yyyy')}"></td>
+          <td><span class="badge estado" th:text="${x.estado}"></span></td>
+          <td class="text-end" th:text="${'$' + #numbers.formatDecimal(x.valorTotal, 1, 'POINT', 0, 'COMMA')}"></td>
+          <td th:text="${x.canal}"></td>
+          <td th:text="${x.idCliente == null ? '' : opcCliente[x.idCliente]}"></td>
+          <td th:text="${x.idPlan == null ? '' : opcPlan[x.idPlan]}"></td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-success" th:href="@{/reservas/{id}(id=${x.idReserva})}">Ver</a>
+            <a class="btn btn-sm btn-outline-primary" th:unless="${sesion.encargado}" th:href="@{/reservas/{id}/editar(id=${x.idReserva})}">Editar</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

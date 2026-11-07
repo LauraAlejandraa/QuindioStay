@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Mis reservas')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3">Mis reservas</h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <table id="tabla" class="table table-hover bg-white tabla-paginada align-middle">
+    <thead class="table-success"><tr><th>#</th><th>Servicio</th><th>Prestador · plan</th><th>Estado</th><th class="text-end">Valor</th><th class="text-end">Saldo</th><th></th></tr></thead>
+    <tbody>
+      <tr th:each="r : ${lista}">
+        <td th:text="${r.id_reserva}"></td>
+        <td th:text="${#dates.format(r.fecha_servicio, 'dd/MM/yyyy')}"></td>
+        <td th:text="${r.prestador} + ' · ' + ${r.plan}"></td>
+        <td><span class="badge estado" th:text="${r.estado_reserva}"></span></td>
+        <td class="text-end" th:text="${'$' + #numbers.formatDecimal(r.valor_total, 1, 'POINT', 0, 'COMMA')}"></td>
+        <td class="text-end" th:text="${'$' + #numbers.formatDecimal(r.saldo, 1, 'POINT', 0, 'COMMA')}"></td>
+        <td class="text-end"><a class="btn btn-sm btn-outline-success" th:href="@{/mi-cuenta/reservas/{id}(id=${r.id_reserva})}">Ver</a></td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(lista)}"><td colspan="7" class="text-muted">Todavía no tiene reservas. <a th:href="@{/venta}">Compre sus boletas</a>.</td></tr>
+    </tbody>
+  </table>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

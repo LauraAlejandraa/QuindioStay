@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Reserva')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="'Editar reserva #' + ${obj.idReserva}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/reservas/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idReserva}">
+    <p class="small text-muted">La fecha, el cliente, el plan y el valor total quedan congelados desde la venta
+      (el valor es el precio que pagó el cliente). Solo se cambian el canal y el estado, con sus reglas.</p>
+    <div class="row">
+      <div class="col-md-4 mb-3"><label class="form-label">Cliente</label>
+        <input class="form-control" th:value="${opcCliente[obj.idCliente]}" disabled></div>
+      <div class="col-md-4 mb-3"><label class="form-label">Plan</label>
+        <input class="form-control" th:value="${opcPlan[obj.idPlan]}" disabled></div>
+      <div class="col-md-2 mb-3"><label class="form-label">Fecha del servicio</label>
+        <input class="form-control" th:value="${#temporals.format(obj.fechaServicio, 'dd/MM/yyyy')}" disabled></div>
+      <div class="col-md-2 mb-3"><label class="form-label">Valor total</label>
+        <input class="form-control" th:value="${'$' + #numbers.formatDecimal(obj.valorTotal, 1, 'POINT', 0, 'COMMA')}" disabled></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Canal</label>
+        <select class="form-select" th:field="*{canal}"><option th:each="v : ${ {'web','aplicación móvil','teléfono','mostrador','agencia intermediaria'} }" th:value="${v}" th:text="${v}"></option></select></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Estado</label>
+        <select class="form-select" th:field="*{estado}"><option th:each="v : ${ {'pendiente','confirmada','completada','cancelada'} }" th:value="${v}" th:text="${v}"></option></select>
+        <div class="form-text">pendiente → confirmada → completada. Cancelar anula las boletas y aplica el reembolso.</div></div>
+    </div>
+    <div><button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/reservas/{id}(id=${obj.idReserva})}">Volver</a></div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Clientes')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container-fluid px-4 py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Clientes</h1>
+    <a class="btn btn-success" th:href="@{/clientes/nuevo}">+ Nuevo</a>
+  </div>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <input class="form-control mb-2 buscador" placeholder="Buscar en la tabla..." data-tabla="tabla">
+  <div class="table-responsive">
+    <table id="tabla" class="table table-sm table-hover align-middle tabla-paginada">
+      <thead class="table-success">
+        <tr><th>ID</th><th>Primer nombre</th><th>Primer apellido</th><th>Tipo de documento</th><th>Número de documento</th><th>Correo</th><th>Teléfono</th><th>Fecha de nacimiento</th><th>Ciudad de origen</th><th class="text-end">Acciones</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="x : ${lista}">
+          <td th:text="${x.idCliente}"></td>
+          <td th:text="${x.primerNombre}"></td>
+          <td th:text="${x.primerApellido}"></td>
+          <td th:text="${x.tipoDocumento}"></td>
+          <td th:text="${x.numeroDocumento}"></td>
+          <td th:text="${x.email}"></td>
+          <td th:text="${x.telefono}"></td>
+          <td th:text="${#temporals.format(x.fechaNacimiento, 'dd/MM/yyyy')}"></td>
+          <td th:text="${x.ciudadOrigen}"></td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" th:href="@{/clientes/{id}/editar(id=${x.idCliente})}">Editar</a>
+            <form th:action="@{/clientes/{id}/eliminar(id=${x.idCliente})}" method="post" class="d-inline"
+                  onsubmit="return confirm('¿Seguro? Esta acción: eliminar.');">
+              <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

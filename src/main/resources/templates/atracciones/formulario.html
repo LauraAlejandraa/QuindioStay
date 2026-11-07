@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Atracciones')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idAtraccion == null} ? 'Nuevo registro · atracción' : 'Editar atracción #' + ${obj.idAtraccion}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/atracciones/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idAtraccion}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="nombre">Nombre <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{nombre}" maxlength="100" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="descripcion">Descripción <span class="text-danger">*</span></label>
+        <textarea class="form-control" rows="2" th:field="*{descripcion}" maxlength="255" required></textarea>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="ubicacion">Ubicación <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{ubicacion}" maxlength="150" required>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/atracciones}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

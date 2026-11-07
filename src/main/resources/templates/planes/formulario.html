@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Planes')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idPlan == null} ? 'Nuevo registro · plan' : 'Editar plan #' + ${obj.idPlan}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/planes/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idPlan}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="nombre">Nombre <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{nombre}" maxlength="80" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="descripcion">Descripción <span class="text-danger">*</span></label>
+        <textarea class="form-control" rows="2" th:field="*{descripcion}" maxlength="255" required></textarea>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="tipo">Tipo <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{tipo}" required><option th:each="v : ${ {'básico', 'estándar', 'premium', 'todo incluido'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="precio">Precio <span class="text-danger">*</span></label>
+        <input type="number" class="form-control" th:field="*{precio}" step="0.01" min="1" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="fechaInicio">Fecha de inicio <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" th:field="*{fechaInicio}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="fechaFin">Fecha de fin <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" th:field="*{fechaFin}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="estado">Estado <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${ {'activo', 'inactivo'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idPrestador">Prestador <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idPrestador}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcPrestador}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/planes}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

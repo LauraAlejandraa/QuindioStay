@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Vender boletas')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3" th:text="${atraccion.nombre}"></h1>
+  <p class="text-muted" th:text="'Función del ' + ${#temporals.format(funcion.fecha, 'dd/MM/yyyy')} + ', de ' + ${#temporals.format(funcion.horaApertura, 'HH:mm')} + ' a ' + ${#temporals.format(funcion.horaCierre, 'HH:mm')}"></p>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/venta/funcion/{id}(id=${funcion.idFuncion})}" method="post" class="card card-body shadow-sm">
+    <h2 class="h5">Boletas por zona y tipo de entrada</h2>
+    <div class="table-responsive"><table class="table table-sm align-middle">
+      <thead class="table-success"><tr><th>Zona</th><th class="text-end">Precio</th><th class="text-end">Cupos</th>
+        <th th:each="t : ${tipos}" class="text-center"><span th:text="${t.nombre}"></span><br><small class="text-muted" th:text="'-' + ${#numbers.formatDecimal(t.porcentajeDescuento, 1, 0)} + ' %'"></small></th></tr></thead>
+      <tbody>
+        <tr th:each="z : ${zonas}">
+          <td th:text="${z.zona}"></td>
+          <td class="text-end" th:text="${'$' + #numbers.formatDecimal(z.precio, 1, 'POINT', 0, 'COMMA')}"></td>
+          <td class="text-end" th:text="${z.cupos_disponibles} + ' / ' + ${z.aforo}"></td>
+          <td th:each="t : ${tipos}"><input type="number" min="0" class="form-control form-control-sm text-center" style="max-width:6rem;margin:auto"
+                 th:name="'cant_' + ${z.id_zona} + '_' + ${t.idTipoEntrada}" placeholder="0"></td>
+        </tr>
+      </tbody>
+    </table></div>
+    <p class="small text-muted">Valor de cada boleta = precio de la zona menos el descuento del tipo de entrada. Una boleta de niño necesita una de adulto en la misma compra.</p>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Plan * <small class="text-muted">(activos y vigentes el día de la función, de prestadores afiliados a la atracción)</small></label>
+        <select name="idPlan" class="form-select" required>
+          <option value="">-- Seleccione --</option>
+          <option th:each="p : ${planes}" th:value="${p.id_plan}" th:text="${p.prestador} + ' · ' + ${p.plan} + ' (' + ${p.tipo_plan} + ')'"></option>
+        </select>
+        <div class="form-text text-danger" th:if="${#lists.isEmpty(planes)}">No hay planes vigentes para esta atracción en esa fecha.</div>
+      </div>
+      <th:block th:if="${!sesion.cliente}">
+        <div class="col-md-4 mb-3"><label class="form-label">Cliente *</label>
+          <select name="idCliente" class="form-select" required><option value="">-- Seleccione --</option>
+            <option th:each="c : ${opcCliente}" th:value="${c.key}" th:text="${c.value}"></option></select>
+          <div class="form-text">¿No está? <a th:href="@{/clientes/nuevo}">Registrar cliente</a></div></div>
+        <div class="col-md-2 mb-3"><label class="form-label">Canal</label>
+          <select name="canal" class="form-select"><option th:each="v : ${ {'mostrador','teléfono','agencia intermediaria','web','aplicación móvil'} }" th:value="${v}" th:text="${v}"></option></select></div>
+      </th:block>
+    </div>
+    <div><button class="btn btn-success">Crear reserva con estas boletas</button>
+      <a class="btn btn-outline-secondary" th:href="@{/venta}">Volver</a></div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

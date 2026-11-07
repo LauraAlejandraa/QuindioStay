@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Taquilla')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4" style="max-width: 760px">
+  <h1 class="h3">Taquilla · validar boleta</h1>
+  <p class="text-muted">La boleta pasa a «usada» solo el día de su función y si su reserva está pagada. Una boleta usada o anulada no vuelve a entrar.</p>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/taquilla}" method="post" class="input-group input-group-lg mb-4">
+    <input class="form-control" name="codigo" th:value="${codigo}" placeholder="QS-000123" required autofocus>
+    <button class="btn btn-success">Validar</button>
+  </form>
+  <div class="card shadow-sm" th:if="${boleta != null}"><div class="card-body">
+    <h2 class="h4" th:text="${boleta.codigo}"></h2>
+    <table class="table table-sm mb-0">
+      <tr><th>Atracción</th><td th:text="${boleta.atraccion}"></td></tr>
+      <tr><th>Función</th><td th:text="${#dates.format(boleta.fecha_funcion, 'dd/MM/yyyy')} + ' · ' + ${boleta.hora_apertura} + ' a ' + ${boleta.hora_cierre}"></td></tr>
+      <tr><th>Zona</th><td th:text="${boleta.zona}"></td></tr>
+      <tr><th>Tipo de entrada</th><td th:text="${boleta.tipo_entrada}"></td></tr>
+      <tr><th>Reserva</th><td th:text="'#' + ${boleta.id_reserva}"></td></tr>
+      <tr><th>Estado</th><td><span class="badge estado" th:text="${boleta.estado_boleta}"></span></td></tr>
+    </table>
+  </div></div>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

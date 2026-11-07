@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Vender combo')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3" th:text="'Combo ' + ${combo.nombre}"></h1>
+  <p class="text-muted"><span th:text="${combo.descripcion}"></span>. Precio especial por unidad:
+    <strong th:text="${'$' + #numbers.formatDecimal(combo.precioEspecial, 1, 'POINT', 0, 'COMMA')}"></strong>.
+    Cada unidad trae una boleta por atracción, y cada boleta puede ser de un día distinto.</p>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/venta/combo/{id}(id=${combo.idCombo})}" method="post" class="card card-body shadow-sm">
+    <div class="row">
+      <div class="col-md-6 mb-3" th:each="e : ${zonasPorAtraccion}">
+        <label class="form-label fw-semibold" th:text="${e.key.nombre}"></label>
+        <select class="form-select" th:name="'zona_' + ${e.key.idAtraccion}" required>
+          <option value="">-- Función y zona --</option>
+          <option th:each="z : ${e.value}" th:value="${z.id_zona}"
+                  th:text="${#dates.format(z.fecha_funcion, 'dd/MM/yyyy')} + ' ' + ${z.hora_apertura} + ' · ' + ${z.zona} + ' · ' + ${z.cupos_disponibles} + ' cupos'"></option>
+        </select>
+      </div>
+      <div class="col-md-2 mb-3"><label class="form-label">Unidades *</label>
+        <input type="number" name="unidades" class="form-control" min="1" value="1" required></div>
+      <div class="col-md-4 mb-3"><label class="form-label">Tipo de entrada *</label>
+        <select name="idTipoEntrada" class="form-select"><option th:each="t : ${tipos}" th:value="${t.idTipoEntrada}" th:text="${t.nombre}"></option></select></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Plan * <small class="text-muted">(el prestador debe estar afiliado a todas las atracciones del combo)</small></label>
+        <select name="idPlan" class="form-select" required><option value="">-- Seleccione --</option>
+          <option th:each="p : ${planes}" th:value="${p.id_plan}" th:text="${p.prestador} + ' · ' + ${p.plan}"></option></select></div>
+      <th:block th:if="${!sesion.cliente}">
+        <div class="col-md-4 mb-3"><label class="form-label">Cliente *</label>
+          <select name="idCliente" class="form-select" required><option value="">-- Seleccione --</option>
+            <option th:each="c : ${opcCliente}" th:value="${c.key}" th:text="${c.value}"></option></select></div>
+        <div class="col-md-2 mb-3"><label class="form-label">Canal</label>
+          <select name="canal" class="form-select"><option th:each="v : ${ {'mostrador','teléfono','agencia intermediaria','web','aplicación móvil'} }" th:value="${v}" th:text="${v}"></option></select></div>
+      </th:block>
+    </div>
+    <div><button class="btn btn-success">Crear reserva del combo</button>
+      <a class="btn btn-outline-secondary" th:href="@{/venta/combo}">Volver</a></div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

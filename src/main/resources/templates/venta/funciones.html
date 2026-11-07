@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Vender boletas')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3" th:text="${sesion.cliente} ? 'Comprar boletas · escoja la función' : 'Vender boletas · paso 1: escoja la función'"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-md-6"><select name="atraccion" class="form-select" onchange="this.form.submit()">
+      <option value="">Todas las atracciones</option>
+      <option th:each="a : ${atracciones}" th:value="${a.key}" th:text="${a.value}" th:selected="${a.key == atraccion}"></option>
+    </select></div>
+  </form>
+  <input class="form-control mb-2 buscador" placeholder="Buscar por fecha o atracción..." data-tabla="tabla">
+  <table id="tabla" class="table table-hover bg-white tabla-paginada align-middle">
+    <thead class="table-success"><tr><th>Fecha</th><th>Horario</th><th>Atracción</th><th class="text-end">Cupos libres</th><th></th></tr></thead>
+    <tbody>
+      <tr th:each="f : ${funciones}">
+        <td th:text="${#dates.format(f.fecha, 'EEE dd/MM/yyyy')}"></td>
+        <td th:text="${f.hora_apertura} + ' a ' + ${f.hora_cierre}"></td>
+        <td th:text="${f.atraccion}"></td>
+        <td class="text-end" th:text="${f.cupos}"></td>
+        <td class="text-end"><a class="btn btn-sm btn-success" th:classappend="${f.cupos == 0} ? 'disabled'" th:href="@{/venta/funcion/{id}(id=${f.id_funcion})}">Escoger</a></td>
+      </tr>
+    </tbody>
+  </table>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

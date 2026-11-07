@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Boletas')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idBoleta == null} ? 'Nuevo registro · boleta' : 'Editar boleta #' + ${obj.idBoleta}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/boletas/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idBoleta}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="codigo">Código <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" th:field="*{codigo}" maxlength="30" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="estado">Estado <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${ {'vendida', 'usada', 'anulada'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idReserva">Reserva <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idReserva}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcReserva}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idZona">Zona (atracción · fecha · zona) <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idZona}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcZona}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idTipoEntrada">Tipo de entrada <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idTipoEntrada}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcTipoEntrada}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idCombo">Combo (si salió de uno)</label>
+        <select class="form-select" th:field="*{idCombo}"><option value="">(ninguno)</option><option th:each="o : ${opcCombo}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/boletas}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

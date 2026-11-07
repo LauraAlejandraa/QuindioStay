@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Perfiles de clientes')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3 mb-3" th:text="${obj.idPerfil == null} ? 'Nuevo registro · perfil' : 'Editar perfil #' + ${obj.idPerfil}"></h1>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/perfiles/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
+    <input type="hidden" th:field="*{idPerfil}">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idioma">Idioma <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idioma}" required><option th:each="v : ${ {'español', 'inglés'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="canalPreferido">Canal preferido <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{canalPreferido}" required><option th:each="v : ${ {'correo', 'SMS', 'WhatsApp'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="anticipacionRecordatorio">Anticipación del recordatorio (días) <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{anticipacionRecordatorio}" required><option th:each="v : ${ {1, 3, 7} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="aceptaPromociones">Acepta promociones <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{aceptaPromociones}" required><option th:each="v : ${ {'sí', 'no'} }" th:value="${v}" th:text="${v}"></option></select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label" for="idCliente">Cliente <span class="text-danger">*</span></label>
+        <select class="form-select" th:field="*{idCliente}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcCliente}" th:value="${o.key}" th:text="${o.value}"></option></select>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-success">Guardar</button>
+      <a class="btn btn-outline-secondary" th:href="@{/perfiles}">Volver</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>
