@@ -481,4 +481,32 @@ CREATE INDEX ix_reserva_fecha_creacion ON Reserva (fecha_creacion);
 CREATE INDEX ix_funcion_fecha          ON Funcion (fecha);
 CREATE INDEX ix_notif_fecha_programada ON Notificacion (fecha_programada);
 
+-- ---------------------------------------------------------------------
+-- BLOQUE 7 · Verificar lo creado (como el BLOQUE 3 de la Clase 10).
+-- En Oracle se consultan user_tables y user_constraints; en MySQL la
+-- información equivalente está en information_schema.
+-- Solo sirven para MIRAR lo creado: no cambian nada.
+-- ---------------------------------------------------------------------
+
+-- Las tablas creadas (deben ser 20)
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'quindiostay'
+  AND table_type = 'BASE TABLE'
+ORDER BY table_name;
+
+-- Las restricciones de una tabla (PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY).
+-- En Windows MySQL guarda los nombres de tabla en minúscula; por eso LOWER().
+SELECT constraint_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_schema = 'quindiostay'
+  AND LOWER(table_name) = 'reserva'
+ORDER BY constraint_type, constraint_name;
+
+-- Qué hace cada clave foránea al borrar el padre (RESTRICT o CASCADE)
+SELECT table_name, constraint_name, referenced_table_name, delete_rule
+FROM information_schema.referential_constraints
+WHERE constraint_schema = 'quindiostay'
+ORDER BY table_name;
+
 -- Fin del script 01: 20 tablas.

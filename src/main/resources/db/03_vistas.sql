@@ -2,6 +2,9 @@
 -- QuindíoStay · Bases de Datos I · Grupo 02D · 2026-2
 -- Script 03: vistas
 -- Motor: MySQL 8.0.46
+-- Estilo de la clase (Clase 15): alias de tabla sin AS, toda columna con
+-- el alias de su tabla, y en cada ON siempre FK = PK (la foránea de la
+-- tabla hija = la primaria de la tabla padre).
 -- Ejecutar DESPUÉS de 00, 01 y 02.
 -- Una vista es una consulta guardada con nombre: no guarda datos propios,
 -- cada vez que se consulta MySQL ejecuta su SELECT. Se usan para no
@@ -51,12 +54,12 @@ SELECT b.id_boleta,
            ELSE NULL
        END                     AS valor_boleta
 FROM Boleta b
-INNER JOIN Reserva r      ON r.id_reserva = b.id_reserva
-INNER JOIN Zona z         ON z.id_zona = b.id_zona
-INNER JOIN Funcion f      ON f.id_funcion = z.id_funcion
-INNER JOIN Atraccion a    ON a.id_atraccion = f.id_atraccion
-INNER JOIN Tipo_entrada t ON t.id_tipo_entrada = b.id_tipo_entrada
-LEFT JOIN Combo c         ON c.id_combo = b.id_combo;
+INNER JOIN Reserva r      ON b.id_reserva = r.id_reserva
+INNER JOIN Zona z         ON b.id_zona = z.id_zona
+INNER JOIN Funcion f      ON z.id_funcion = f.id_funcion
+INNER JOIN Atraccion a    ON f.id_atraccion = a.id_atraccion
+INNER JOIN Tipo_entrada t ON b.id_tipo_entrada = t.id_tipo_entrada
+LEFT JOIN Combo c         ON b.id_combo = c.id_combo;
 
 -- ---------------------------------------------------------------------
 -- Vista 2 · vista_ocupacion_zona
@@ -81,8 +84,8 @@ SELECT z.id_zona,
        COUNT(b.id_boleta)               AS boletas_vendidas,
        z.aforo - COUNT(b.id_boleta)     AS cupos_disponibles
 FROM Zona z
-INNER JOIN Funcion f   ON f.id_funcion = z.id_funcion
-INNER JOIN Atraccion a ON a.id_atraccion = f.id_atraccion
+INNER JOIN Funcion f   ON z.id_funcion = f.id_funcion
+INNER JOIN Atraccion a ON f.id_atraccion = a.id_atraccion
 LEFT JOIN Boleta b     ON b.id_zona = z.id_zona
                       AND b.estado <> 'anulada'
 GROUP BY z.id_zona, z.nombre, z.aforo, z.precio,
@@ -146,7 +149,7 @@ SELECT n.id_notificacion,
        n.fecha_real_envio,
        n.estado
 FROM Notificacion n
-LEFT JOIN Reserva r ON r.id_reserva = n.id_reserva;
+LEFT JOIN Reserva r ON n.id_reserva = r.id_reserva;
 
 -- ---------------------------------------------------------------------
 -- Vista 5 · vista_reserva_detalle
@@ -183,10 +186,10 @@ SELECT r.id_reserva,
        pr.RNT                  AS rnt_prestador,
        m.nombre                AS municipio_prestador
 FROM Reserva r
-INNER JOIN Cliente c    ON c.id_cliente = r.id_cliente
-INNER JOIN Plan pl      ON pl.id_plan = r.id_plan
-INNER JOIN Prestador pr ON pr.id_prestador = pl.id_prestador
-INNER JOIN Municipio m  ON m.id_municipio = pr.id_municipio;
+INNER JOIN Cliente c    ON r.id_cliente = c.id_cliente
+INNER JOIN Plan pl      ON r.id_plan = pl.id_plan
+INNER JOIN Prestador pr ON pl.id_prestador = pr.id_prestador
+INNER JOIN Municipio m  ON pr.id_municipio = m.id_municipio;
 
 -- ---------------------------------------------------------------------
 -- Vista 6 · vista_planes_para_vender
@@ -215,8 +218,8 @@ SELECT pa.id_atraccion,
        pl.fecha_inicio,
        pl.fecha_fin
 FROM Prestador_atraccion pa
-INNER JOIN Atraccion a  ON a.id_atraccion = pa.id_atraccion
-INNER JOIN Prestador pr ON pr.id_prestador = pa.id_prestador
+INNER JOIN Atraccion a  ON pa.id_atraccion = a.id_atraccion
+INNER JOIN Prestador pr ON pa.id_prestador = pr.id_prestador
 INNER JOIN Plan pl      ON pl.id_prestador = pr.id_prestador
 WHERE pl.estado = 'activo'
   AND pr.estado = 'activo';
