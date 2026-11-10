@@ -145,9 +145,9 @@ public final class PdfUtil {
         float alto = 16f, separacion = 5f;
         float total = n * (alto + separacion) + 10;
         if (writer.getVerticalPosition(true) - total < doc.bottom()) doc.newPage();
-        float y = writer.getVerticalPosition(true) - 14;
+        float y = writer.getVerticalPosition(true) - alto - 6;
         PdfContentByte cb = writer.getDirectContent();
-        float xBarra = doc.left() + 190, anchoMax = doc.right() - xBarra - 80;
+        float xBarra = doc.left() + 190, anchoMax = doc.right() - xBarra - 100;
         for (int i = 0; i < n; i++) {
             Map<String, Object> f = filas.get(i);
             double v = ((Number) f.get(colValor)).doubleValue();
@@ -159,7 +159,7 @@ public final class PdfUtil {
             cb.fill();
             ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
                     new Phrase(colValor.equals("ingresos") ? pesos(f.get(colValor)) : texto(f.get(colValor)), PEQUENA),
-                    xBarra + (float) (anchoMax * v / max) + 4, y + 4, 0);
+                    xBarra + (float) (anchoMax * v / max) + 18, y + 4, 0);
             y -= alto + separacion;
         }
         Paragraph relleno = new Paragraph(" ");

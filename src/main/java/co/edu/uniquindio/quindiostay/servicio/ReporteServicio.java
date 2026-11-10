@@ -84,9 +84,9 @@ public class ReporteServicio {
         reportes.add(new Reporte(8, "Combos más vendidos", "Avanzado",
                 "¿Cuáles son los combos más vendidos y cuántas unidades se han vendido de cada uno?",
                 "SELECT c.id_combo AS id, c.nombre AS combo, c.precio_especial, "
-                + "(SELECT COUNT(*) FROM Boleta b WHERE b.id_combo = c.id_combo AND b.estado <> 'anulada') "
-                + "/ (SELECT COUNT(*) FROM Combo_atraccion ca WHERE ca.id_combo = c.id_combo) AS unidades_vendidas "
-                + "FROM Combo c ORDER BY unidades_vendidas DESC", List.of(), null, null));
+                        + "ROUND((SELECT COUNT(*) FROM Boleta b WHERE b.id_combo = c.id_combo AND b.estado <> 'anulada') "
+                        + "/ (SELECT COUNT(*) FROM Combo_atraccion ca WHERE ca.id_combo = c.id_combo), 0) AS unidades_vendidas "
+                        + "FROM Combo c ORDER BY unidades_vendidas DESC", List.of(), null, null));
 
         reportes.add(new Reporte(9, "Atracciones con más boletas vendidas", "Avanzado",
                 "¿Cuáles son las atracciones con mayor cantidad de boletas vendidas?",

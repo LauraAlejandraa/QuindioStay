@@ -15,6 +15,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.time.Period;
 
 /**
  * Lógica de negocio de Cliente, incluido el registro de un cliente nuevo
@@ -122,13 +123,44 @@ public class ClienteServicio {
         }
     }
 
+
     /**
-     * La fecha de nacimiento no puede ser posterior a hoy. No es un CHECK porque
-     * MySQL no permite CURDATE() dentro de un CHECK (no es determinista).
+     * La fecha de nacimiento no puede ser posterior a hoy, el documento debe tener un
+     * formato válido según su tipo, y la cédula de ciudadanía exige ser mayor de edad.
+     * Ninguna va en un CHECK: dependen de la fecha de HOY (no determinista en MySQL) o
+     * cruzan con otra columna de la misma fila (tipo_documento).
      */
     private void validar(Cliente x) {
         if (x.getFechaNacimiento() != null && x.getFechaNacimiento().isAfter(LocalDate.now())) {
             throw new ReglaNegocioException("La fecha de nacimiento no puede ser posterior a hoy.");
+        }
+        validarDocumento(x);
+        if (x.getFechaNacimiento() != null && "cédula de ciudadanía".equals(x.getTipoDocumento())) {
+            int edad = Period.between(x.getFechaNacimiento(), LocalDate.now()).getYears();
+            if (edad < 18) {
+                throw new ReglaNegocioException("Para registrarse con cédula de ciudadanía hay que ser mayor de edad (18 años). Use tarjeta de identidad si es menor.");
+            }
+        }
+    }
+
+    /**
+     * El pasaporte sí puede combinar letras y números (así son los pasaportes reales),
+     * por eso solo se exige "solo dígitos" para los documentos colombianos numéricos.
+     */
+    private void validarDocumento(Cliente x) {
+        String tipo = x.getTipoDocumento();
+        String numero = x.getNumeroDocumento();
+        if (numero == null || tipo == null) {
+            return;
+        }
+        boolean esNumerico = tipo.equals("cédula de ciudadanía") || tipo.equals("cédula de extranjería")
+                || tipo.equals("tarjeta de identidad");
+        if (esNumerico) {
+            if (!numero.matches("[0-9]{6,15}")) {
+                throw new ReglaNegocioException("El número de documento debe tener solo dígitos, entre 6 y 15.");
+            }
+        } else if (numero.length() < 6) {
+            throw new ReglaNegocioException("El número de documento debe tener al menos 6 caracteres.");
         }
     }
 }

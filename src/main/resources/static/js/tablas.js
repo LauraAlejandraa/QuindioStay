@@ -4,14 +4,23 @@ document.querySelectorAll('.badge.estado').forEach(function (b) {
 });
 
 document.querySelectorAll('table.tabla-paginada').forEach(function (tabla) {
-  var porPagina = 25, pagina = 0, filtro = '';
+  var porPagina = 25, pagina = 0, palabras = [], columna = -1;
   var filas = Array.from(tabla.tBodies[0].rows);
   var paginador = document.createElement('div');
   paginador.className = 'paginador d-flex gap-1 flex-wrap align-items-center my-2';
   tabla.parentNode.insertAdjacentElement('afterend', paginador);
 
   function visibles() {
-    return filas.filter(function (f) { return f.textContent.toLowerCase().indexOf(filtro) >= 0; });
+    if (palabras.length === 0) return filas;
+    return filas.filter(function (f) {
+      var texto;
+      if (columna >= 0 && f.cells[columna]) {
+        texto = f.cells[columna].textContent.toLowerCase();
+      } else {
+        texto = f.textContent.toLowerCase();
+      }
+      return palabras.every(function (p) { return texto.indexOf(p) >= 0; });
+    });
   }
   function pintar() {
     var v = visibles();
@@ -33,7 +42,39 @@ document.querySelectorAll('table.tabla-paginada').forEach(function (tabla) {
   }
   var buscador = document.querySelector('.buscador[data-tabla="' + tabla.id + '"]');
   if (buscador) {
-    buscador.addEventListener('input', function () { filtro = buscador.value.toLowerCase(); pagina = 0; pintar(); });
+    var envoltura = document.createElement('div');
+    envoltura.className = 'd-flex gap-2 align-items-center mb-2';
+    buscador.classList.remove('mb-2');
+    buscador.classList.add('flex-grow-1');
+    buscador.parentNode.insertBefore(envoltura, buscador);
+    envoltura.appendChild(buscador);
+
+    var selector = document.createElement('select');
+    selector.className = 'form-select form-select-sm w-auto';
+    var opcionTodas = document.createElement('option');
+    opcionTodas.value = '-1';
+    opcionTodas.textContent = 'Todas las columnas';
+    selector.appendChild(opcionTodas);
+    if (tabla.tHead) {
+      Array.from(tabla.tHead.rows[0].cells).forEach(function (th, i) {
+        var texto = th.textContent.trim();
+        if (!texto || texto.toLowerCase() === 'acciones') return;
+        var opcion = document.createElement('option');
+        opcion.value = String(i);
+        opcion.textContent = texto;
+        selector.appendChild(opcion);
+      });
+    }
+    envoltura.appendChild(selector);
+
+    function actualizarFiltro() {
+      palabras = buscador.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      columna = parseInt(selector.value, 10);
+      pagina = 0;
+      pintar();
+    }
+    buscador.addEventListener('input', actualizarFiltro);
+    selector.addEventListener('change', actualizarFiltro);
   }
   pintar();
 });
