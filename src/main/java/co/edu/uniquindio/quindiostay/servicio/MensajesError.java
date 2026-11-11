@@ -46,6 +46,9 @@ public final class MensajesError {
         RESTRICCIONES.put("ck_cliente_tipo_doc", "El tipo de documento no es válido.");
         RESTRICCIONES.put("ck_cliente_email", "El correo electrónico no es válido (debe tener @ y punto).");
         RESTRICCIONES.put("ck_cliente_telefono", "El teléfono solo puede tener dígitos (entre 7 y 15).");
+        RESTRICCIONES.put("ck_cliente_numero_doc", "El número de documento no tiene el formato correcto para ese tipo de documento.");
+        RESTRICCIONES.put("ck_cliente_nacimiento", "La fecha de nacimiento no es válida (debe ser posterior a 1900 y anterior a hoy).");
+        RESTRICCIONES.put("ck_cliente_edad_doc", "La edad no corresponde al tipo de documento (cédula de ciudadanía desde los 18 años, tarjeta de identidad de 7 a 17).");
         RESTRICCIONES.put("ck_tipo_entrada_nombre", "El tipo de entrada debe ser adulto, niño, adulto mayor o estudiante.");
         RESTRICCIONES.put("ck_tipo_entrada_desc", "El porcentaje de descuento debe estar entre 0 y 100.");
         RESTRICCIONES.put("ck_combo_precio", "El precio especial del combo debe ser mayor que 0.");

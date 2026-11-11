@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="SqlDialectMappings">
-    <file url="file://$PROJECT_DIR$/src/main/resources/db/00_limpieza.sql" dialect="GenericSQL" />
-    <file url="file://$PROJECT_DIR$/src/main/resources/db/01_creacion_tablas.sql" dialect="GenericSQL" />
-    <file url="file://$PROJECT_DIR$/src/main/resources/db/02_carga_datos.sql" dialect="GenericSQL" />
-    <file url="file://$PROJECT_DIR$/src/main/resources/db/03_vistas.sql" dialect="GenericSQL" />
-    <file url="file://$PROJECT_DIR$/src/main/resources/db/04_reportes.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/pruebas/verificar_checklist.sql" dialect="GenericSQL" />
   </component>
 </project>

@@ -12,7 +12,7 @@
 USE quindiostay;
 
 -- ---------------------------------------------------------------------
--- BLOQUE 1 · Tablas PADRE del núcleo (catálogos)
+-- BLOQUE 1 - Tablas PADRE del núcleo (catálogos)
 -- ---------------------------------------------------------------------
 
 -- Municipio: los 12 municipios del Quindío con los que trabaja la
@@ -20,13 +20,13 @@ USE quindiostay;
 -- El código DANE es CHAR(5) porque siempre tiene 5 caracteres y no se
 -- hacen cuentas con él (Clase 8).
 CREATE TABLE Municipio (
-    id_municipio  INT          NOT NULL AUTO_INCREMENT,
-    nombre        VARCHAR(60)  NOT NULL,
-    codigo_DANE   CHAR(5)      NOT NULL,
-    CONSTRAINT pk_municipio        PRIMARY KEY (id_municipio),
+    id_municipio  INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(60) NOT NULL,
+    codigo_DANE CHAR(5) NOT NULL,
+    CONSTRAINT pk_municipio PRIMARY KEY (id_municipio),
     CONSTRAINT uq_municipio_nombre UNIQUE (nombre),
-    CONSTRAINT uq_municipio_dane   UNIQUE (codigo_DANE),
-    CONSTRAINT ck_municipio_dane   CHECK (codigo_DANE REGEXP '^[0-9]{5}$')
+    CONSTRAINT uq_municipio_dane UNIQUE (codigo_DANE),
+    CONSTRAINT ck_municipio_dane CHECK (codigo_DANE REGEXP '^[0-9]{5}$')
 ) COMMENT = 'Municipios del Quindío donde operan los prestadores';
 
 -- Tipo_prestador: clasificación de los prestadores (alojamiento,
@@ -34,18 +34,18 @@ CREATE TABLE Municipio (
 -- No lleva CHECK con lista cerrada porque el enunciado permite
 -- "otros que ustedes puedan sustentar".
 CREATE TABLE Tipo_prestador (
-    id_tipo_prestador  INT          NOT NULL AUTO_INCREMENT,
-    nombre             VARCHAR(40)  NOT NULL,
-    CONSTRAINT pk_tipo_prestador        PRIMARY KEY (id_tipo_prestador),
+    id_tipo_prestador  INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(40) NOT NULL,
+    CONSTRAINT pk_tipo_prestador PRIMARY KEY (id_tipo_prestador),
     CONSTRAINT uq_tipo_prestador_nombre UNIQUE (nombre)
 ) COMMENT = 'Tipos de prestador turístico';
 
 -- Rol: los tres roles de los usuarios internos. Es una lista cerrada
 -- del enunciado, por eso lleva CHECK con IN.
 CREATE TABLE Rol (
-    id_rol  INT          NOT NULL AUTO_INCREMENT,
-    nombre  VARCHAR(40)  NOT NULL,
-    CONSTRAINT pk_rol        PRIMARY KEY (id_rol),
+    id_rol INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(40) NOT NULL,
+    CONSTRAINT pk_rol PRIMARY KEY (id_rol),
     CONSTRAINT uq_rol_nombre UNIQUE (nombre),
     CONSTRAINT ck_rol_nombre CHECK (nombre IN ('administrador de la plataforma',
                                                'encargado de prestador',
@@ -53,7 +53,7 @@ CREATE TABLE Rol (
 ) COMMENT = 'Roles de los usuarios internos del sistema';
 
 -- ---------------------------------------------------------------------
--- BLOQUE 2 · Otras tablas PADRE: Cliente y los catálogos del módulo de
+-- BLOQUE 2 - Otras tablas PADRE: Cliente y los catálogos del módulo de
 -- boletería (Atraccion, Tipo_entrada, Combo). Tampoco apuntan a nadie.
 -- ---------------------------------------------------------------------
 
@@ -62,69 +62,89 @@ CREATE TABLE Rol (
 -- repite, y el correo tampoco.
 -- segundo_nombre y segundo_apellido son opcionales (muchos clientes,
 -- sobre todo extranjeros, no tienen).
--- La regla "fecha_nacimiento no posterior a hoy" NO va en un CHECK:
--- MySQL no permite CURDATE() en un CHECK. La valida la aplicación.
+-- fecha_registro: el día en que el cliente se registró. Por defecto es
+-- la fecha de hoy (DEFAULT (CURRENT_DATE)), como fechaRegistro en la
+-- Clase 10. Sirve para validar la fecha de nacimiento y la edad contra
+-- el documento con un CHECK, porque MySQL no permite CURDATE() en un CHECK.
 CREATE TABLE Cliente (
-    id_cliente        INT           NOT NULL AUTO_INCREMENT,
-    primer_nombre     VARCHAR(40)   NOT NULL,
-    segundo_nombre    VARCHAR(40),
-    primer_apellido   VARCHAR(40)   NOT NULL,
-    segundo_apellido  VARCHAR(40),
-    tipo_documento    VARCHAR(25)   NOT NULL,
-    numero_documento  VARCHAR(20)   NOT NULL,
-    email             VARCHAR(100)  NOT NULL,
-    telefono          VARCHAR(15)   NOT NULL,
-    fecha_nacimiento  DATE          NOT NULL,
-    ciudad_origen     VARCHAR(60)   NOT NULL,
-    CONSTRAINT pk_cliente           PRIMARY KEY (id_cliente),
+    id_cliente INT NOT NULL AUTO_INCREMENT,
+    primer_nombre VARCHAR(40) NOT NULL,
+    segundo_nombre VARCHAR(40),
+    primer_apellido VARCHAR(40) NOT NULL,
+    segundo_apellido VARCHAR(40),
+    tipo_documento VARCHAR(25) NOT NULL,
+    numero_documento  VARCHAR(20) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    telefono VARCHAR(15) NOT NULL,
+    fecha_nacimiento  DATE NOT NULL,
+    ciudad_origen VARCHAR(60) NOT NULL,
+    fecha_registro DATE NOT NULL DEFAULT (CURRENT_DATE),
+    CONSTRAINT pk_cliente PRIMARY KEY (id_cliente),
     CONSTRAINT uq_cliente_documento UNIQUE (tipo_documento, numero_documento),
-    CONSTRAINT uq_cliente_email     UNIQUE (email),
-    CONSTRAINT ck_cliente_tipo_doc  CHECK (tipo_documento IN ('cédula de ciudadanía',
+    CONSTRAINT uq_cliente_email UNIQUE (email),
+    CONSTRAINT ck_cliente_tipo_doc CHECK (tipo_documento IN ('cédula de ciudadanía',
                                                               'cédula de extranjería',
                                                               'pasaporte',
                                                               'tarjeta de identidad')),
-    CONSTRAINT ck_cliente_email     CHECK (email LIKE '%_@_%._%'),
-    CONSTRAINT ck_cliente_telefono  CHECK (telefono REGEXP '^[0-9]{7,15}$')
+    CONSTRAINT ck_cliente_email CHECK (email LIKE '%_@_%._%'),
+    CONSTRAINT ck_cliente_telefono CHECK (telefono REGEXP '^[0-9]{7,15}$'),
+    -- Pasaporte: letras mayúsculas y números. Los demás documentos: solo números.
+    CONSTRAINT ck_cliente_numero_doc CHECK (
+        (tipo_documento = 'pasaporte' AND numero_documento REGEXP '^[A-Z0-9]{5,15}$')
+     OR (tipo_documento <> 'pasaporte' AND numero_documento REGEXP '^[0-9]{6,15}$')),
+    -- Nadie nace el mismo día ni después de registrarse, ni antes de 1900.
+    -- (MySQL no deja usar CURDATE() en un CHECK, pero sí comparar dos
+    -- columnas de la misma fila: por eso se compara con fecha_registro.)
+    CONSTRAINT ck_cliente_nacimiento CHECK (fecha_nacimiento >= '1900-01-01'
+	AND fecha_nacimiento < fecha_registro),
+    -- La edad debe corresponder al documento: cédula de ciudadanía desde
+    -- los 18 años y tarjeta de identidad de los 7 a los 17 (edad cumplida
+    -- el día del registro). TIMESTAMPDIFF(YEAR, a, b) = años cumplidos.
+    CONSTRAINT ck_cliente_edad_doc CHECK ((tipo_documento = 'cédula de ciudadanía'
+	AND TIMESTAMPDIFF(YEAR, fecha_nacimiento, fecha_registro) >= 18)
+     OR (tipo_documento = 'tarjeta de identidad'
+AND TIMESTAMPDIFF(YEAR, fecha_nacimiento, fecha_registro) BETWEEN 7 AND 17)
+     OR tipo_documento IN ('cédula de extranjería', 'pasaporte'))
 ) COMMENT = 'Clientes de la plataforma, con o sin cuenta';
 
 -- Atraccion: parques, museos, jardines o festivales que venden entradas.
 -- Se relaciona con Prestador por medio de Prestador_atraccion (N:M).
 CREATE TABLE Atraccion (
-    id_atraccion  INT           NOT NULL AUTO_INCREMENT,
-    nombre        VARCHAR(100)  NOT NULL,
-    descripcion   VARCHAR(255)  NOT NULL,
-    ubicacion     VARCHAR(150)  NOT NULL,
+    id_atraccion  INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion VARCHAR(255) NOT NULL,
+    ubicacion VARCHAR(150) NOT NULL,
     CONSTRAINT pk_atraccion PRIMARY KEY (id_atraccion)
 ) COMMENT = 'Atracciones turísticas que venden boletas';
 
 -- Tipo_entrada: adulto, niño, adulto mayor o estudiante, cada uno con
 -- su porcentaje de descuento sobre el precio de la zona.
 CREATE TABLE Tipo_entrada (
-    id_tipo_entrada       INT           NOT NULL AUTO_INCREMENT,
-    nombre                VARCHAR(20)   NOT NULL,
+    id_tipo_entrada INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(20) NOT NULL,
     porcentaje_descuento  DECIMAL(5,2)  NOT NULL,
-    CONSTRAINT pk_tipo_entrada        PRIMARY KEY (id_tipo_entrada),
+    CONSTRAINT pk_tipo_entrada PRIMARY KEY (id_tipo_entrada),
     CONSTRAINT uq_tipo_entrada_nombre UNIQUE (nombre),
     CONSTRAINT ck_tipo_entrada_nombre CHECK (nombre IN ('adulto', 'niño',
                                                         'adulto mayor', 'estudiante')),
-    CONSTRAINT ck_tipo_entrada_desc   CHECK (porcentaje_descuento BETWEEN 0 AND 100)
+    CONSTRAINT ck_tipo_entrada_desc CHECK (porcentaje_descuento BETWEEN 0 AND 100)
 ) COMMENT = 'Tipos de entrada con su porcentaje de descuento';
 
 -- Combo: oferta que agrupa entradas a varias atracciones con un precio
 -- especial. Un combo vendido no se borra: se inactiva.
 CREATE TABLE Combo (
-    id_combo         INT            NOT NULL AUTO_INCREMENT,
-    nombre           VARCHAR(100)   NOT NULL,
-    descripcion      VARCHAR(255)   NOT NULL,
-    precio_especial  DECIMAL(12,2)  NOT NULL,
-    estado           VARCHAR(10)    NOT NULL DEFAULT 'activo',
-    CONSTRAINT pk_combo        PRIMARY KEY (id_combo),
+    id_combo INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion VARCHAR(255) NOT NULL,
+    precio_especial  DECIMAL(12,2) NOT NULL,
+    estado VARCHAR(10) NOT NULL DEFAULT 'activo',
+    CONSTRAINT pk_combo PRIMARY KEY (id_combo),
     CONSTRAINT ck_combo_precio CHECK (precio_especial > 0),
     CONSTRAINT ck_combo_estado CHECK (estado IN ('activo', 'inactivo'))
 ) COMMENT = 'Combos de entradas a varias atracciones';
 
 -- ---------------------------------------------------------------------
--- BLOQUE 3 · Primeras tablas HIJAS: sus padres ya existen.
+-- BLOQUE 3 - Primeras tablas HIJAS: sus padres ya existen.
 -- Acción al borrar el padre (Entrega 1):
 --   RESTRICT -> no deja borrar el padre si tiene hijas (protege historial)
 --   CASCADE  -> al borrar el padre se borran sus hijas (no existen sin él)
@@ -134,21 +154,21 @@ CREATE TABLE Combo (
 -- Pertenece a un municipio y a un tipo. El NIT o documento no se repite.
 -- Un prestador retirado no se borra: cambia su estado a 'retirado'.
 CREATE TABLE Prestador (
-    id_prestador       INT           NOT NULL AUTO_INCREMENT,
-    nombre_comercial   VARCHAR(100)  NOT NULL,
-    NIT_documento      VARCHAR(20)   NOT NULL,
-    RNT                VARCHAR(20)   NOT NULL,
-    direccion          VARCHAR(150)  NOT NULL,
-    telefono           VARCHAR(15)   NOT NULL,
-    correo             VARCHAR(100)  NOT NULL,
-    estado             VARCHAR(12)   NOT NULL DEFAULT 'activo',
-    id_municipio       INT           NOT NULL,
-    id_tipo_prestador  INT           NOT NULL,
-    CONSTRAINT pk_prestador          PRIMARY KEY (id_prestador),
-    CONSTRAINT uq_prestador_nit      UNIQUE (NIT_documento),
+    id_prestador INT NOT NULL AUTO_INCREMENT,
+    nombre_comercial VARCHAR(100) NOT NULL,
+    NIT_documento VARCHAR(20) NOT NULL,
+    RNT VARCHAR(20) NOT NULL,
+    direccion VARCHAR(150) NOT NULL,
+    telefono VARCHAR(15) NOT NULL,
+    correo VARCHAR(100) NOT NULL,
+    estado VARCHAR(12) NOT NULL DEFAULT 'activo',
+    id_municipio INT NOT NULL,
+    id_tipo_prestador INT NOT NULL,
+    CONSTRAINT pk_prestador PRIMARY KEY (id_prestador),
+    CONSTRAINT uq_prestador_nit UNIQUE (NIT_documento),
     CONSTRAINT ck_prestador_telefono CHECK (telefono REGEXP '^[0-9]{7,15}$'),
-    CONSTRAINT ck_prestador_correo   CHECK (correo LIKE '%_@_%._%'),
-    CONSTRAINT ck_prestador_estado   CHECK (estado IN ('activo', 'suspendido', 'retirado')),
+    CONSTRAINT ck_prestador_correo CHECK (correo LIKE '%_@_%._%'),
+    CONSTRAINT ck_prestador_estado CHECK (estado IN ('activo', 'suspendido', 'retirado')),
     -- RESTRICT: no se borra un municipio que tenga prestadores
     CONSTRAINT fk_prestador_municipio
         FOREIGN KEY (id_municipio) REFERENCES Municipio (id_municipio)
@@ -163,10 +183,10 @@ CREATE TABLE Prestador (
 -- El usuario es el email del cliente, por eso no se repite aquí.
 -- La contraseña se guarda cifrada (hash BCrypt), nunca tal cual.
 CREATE TABLE Cuenta (
-    id_cuenta           INT           NOT NULL AUTO_INCREMENT,
+    id_cuenta INT NOT NULL AUTO_INCREMENT,
     contrasena_cifrada  VARCHAR(255)  NOT NULL,
-    id_cliente          INT           NOT NULL,
-    CONSTRAINT pk_cuenta         PRIMARY KEY (id_cuenta),
+    id_cliente INT NOT NULL,
+    CONSTRAINT pk_cuenta PRIMARY KEY (id_cuenta),
     -- UNIQUE: un cliente tiene como máximo una cuenta (1:1)
     CONSTRAINT uq_cuenta_cliente UNIQUE (id_cliente),
     -- CASCADE: la cuenta no existe sin su cliente
@@ -179,16 +199,16 @@ CREATE TABLE Cuenta (
 -- De aquí salen el canal y la anticipación de los recordatorios, y si
 -- se le pueden enviar promociones.
 CREATE TABLE Perfil_cliente (
-    id_perfil                  INT          NOT NULL AUTO_INCREMENT,
-    idioma                     VARCHAR(10)  NOT NULL,
-    canal_preferido            VARCHAR(10)  NOT NULL,
-    anticipacion_recordatorio  INT          NOT NULL,
-    acepta_promociones         VARCHAR(2)   NOT NULL,
-    id_cliente                 INT          NOT NULL,
-    CONSTRAINT pk_perfil_cliente     PRIMARY KEY (id_perfil),
-    CONSTRAINT uq_perfil_cliente     UNIQUE (id_cliente),
-    CONSTRAINT ck_perfil_idioma      CHECK (idioma IN ('español', 'inglés')),
-    CONSTRAINT ck_perfil_canal       CHECK (canal_preferido IN ('correo', 'SMS', 'WhatsApp')),
+    id_perfil INT NOT NULL AUTO_INCREMENT,
+    idioma VARCHAR(10) NOT NULL,
+    canal_preferido VARCHAR(10) NOT NULL,
+    anticipacion_recordatorio INT NOT NULL,
+    acepta_promociones VARCHAR(2) NOT NULL,
+    id_cliente INT NOT NULL,
+    CONSTRAINT pk_perfil_cliente PRIMARY KEY (id_perfil),
+    CONSTRAINT uq_perfil_cliente UNIQUE (id_cliente),
+    CONSTRAINT ck_perfil_idioma CHECK (idioma IN ('español', 'inglés')),
+    CONSTRAINT ck_perfil_canal CHECK (canal_preferido IN ('correo', 'SMS', 'WhatsApp')),
     CONSTRAINT ck_perfil_anticipacion CHECK (anticipacion_recordatorio IN (1, 3, 7)),
     CONSTRAINT ck_perfil_promociones CHECK (acepta_promociones IN ('sí', 'no')),
     -- CASCADE: el perfil no existe sin su cliente
@@ -201,14 +221,14 @@ CREATE TABLE Perfil_cliente (
 -- La hora de cierre es posterior a la de apertura.
 -- Una función no se borra: se cancela (estado 'cancelada').
 CREATE TABLE Funcion (
-    id_funcion     INT          NOT NULL AUTO_INCREMENT,
-    fecha          DATE         NOT NULL,
-    hora_apertura  TIME         NOT NULL,
-    hora_cierre    TIME         NOT NULL,
-    estado         VARCHAR(12)  NOT NULL DEFAULT 'programada',
-    id_atraccion   INT          NOT NULL,
-    CONSTRAINT pk_funcion        PRIMARY KEY (id_funcion),
-    CONSTRAINT ck_funcion_horas  CHECK (hora_cierre > hora_apertura),
+    id_funcion INT NOT NULL AUTO_INCREMENT,
+    fecha DATE NOT NULL,
+    hora_apertura TIME NOT NULL,
+    hora_cierre TIME NOT NULL,
+    estado VARCHAR(12)  NOT NULL DEFAULT 'programada',
+    id_atraccion INT NOT NULL,
+    CONSTRAINT pk_funcion PRIMARY KEY (id_funcion),
+    CONSTRAINT ck_funcion_horas CHECK (hora_cierre > hora_apertura),
     CONSTRAINT ck_funcion_estado CHECK (estado IN ('programada', 'cancelada', 'realizada')),
     -- RESTRICT: se conserva la historia de funciones de cada atracción
     CONSTRAINT fk_funcion_atraccion
@@ -221,8 +241,8 @@ CREATE TABLE Funcion (
 -- dentro del mismo combo.
 CREATE TABLE Combo_atraccion (
     id_combo_atraccion  INT  NOT NULL AUTO_INCREMENT,
-    id_combo            INT  NOT NULL,
-    id_atraccion        INT  NOT NULL,
+    id_combo INT NOT NULL,
+    id_atraccion INT NOT NULL,
     CONSTRAINT pk_combo_atraccion PRIMARY KEY (id_combo_atraccion),
     CONSTRAINT uq_combo_atraccion UNIQUE (id_combo, id_atraccion),
     -- CASCADE: si se borra un combo (que nunca se vendió), se borra su
@@ -237,7 +257,7 @@ CREATE TABLE Combo_atraccion (
 ) COMMENT = 'Atracciones que forman parte de cada combo';
 
 -- ---------------------------------------------------------------------
--- BLOQUE 4 · Hijas de segundo nivel: apuntan a tablas del bloque 3
+-- BLOQUE 4 - Hijas de segundo nivel: apuntan a tablas del bloque 3
 -- (Prestador, Funcion) y a padres de los bloques 1 y 2.
 -- ---------------------------------------------------------------------
 
@@ -248,15 +268,15 @@ CREATE TABLE Combo_atraccion (
 -- otra tabla (Rol), por eso la valida la aplicación y no un CHECK.
 -- Un usuario no se borra: se bloquea.
 CREATE TABLE Usuario_sistema (
-    id_usuario          INT           NOT NULL AUTO_INCREMENT,
-    nombre_usuario      VARCHAR(40)   NOT NULL,
-    contrasena_cifrada  VARCHAR(255)  NOT NULL,
-    estado              VARCHAR(10)   NOT NULL DEFAULT 'activo',
-    id_rol              INT           NOT NULL,
-    id_prestador        INT,
+    id_usuario INT NOT NULL AUTO_INCREMENT,
+    nombre_usuario VARCHAR(40) NOT NULL,
+    contrasena_cifrada  VARCHAR(255) NOT NULL,
+    estado VARCHAR(10) NOT NULL DEFAULT 'activo',
+    id_rol INT NOT NULL,
+    id_prestador INT,
     CONSTRAINT pk_usuario_sistema PRIMARY KEY (id_usuario),
-    CONSTRAINT uq_usuario_nombre  UNIQUE (nombre_usuario),
-    CONSTRAINT ck_usuario_estado  CHECK (estado IN ('activo', 'bloqueado')),
+    CONSTRAINT uq_usuario_nombre UNIQUE (nombre_usuario),
+    CONSTRAINT ck_usuario_estado CHECK (estado IN ('activo', 'bloqueado')),
     -- RESTRICT: no se borra un rol que tenga usuarios
     CONSTRAINT fk_usuario_rol
         FOREIGN KEY (id_rol) REFERENCES Rol (id_rol)
@@ -271,18 +291,18 @@ CREATE TABLE Usuario_sistema (
 -- "pasaporte del día"). Dos planes del mismo prestador no se llaman
 -- igual. Un plan vendido no se borra: se inactiva.
 CREATE TABLE Plan (
-    id_plan       INT            NOT NULL AUTO_INCREMENT,
-    nombre        VARCHAR(80)    NOT NULL,
-    descripcion   VARCHAR(255)   NOT NULL,
-    tipo          VARCHAR(15)    NOT NULL,
-    precio        DECIMAL(12,2)  NOT NULL,
-    fecha_inicio  DATE           NOT NULL,
-    fecha_fin     DATE           NOT NULL,
-    estado        VARCHAR(10)    NOT NULL DEFAULT 'activo',
-    id_prestador  INT            NOT NULL,
-    CONSTRAINT pk_plan                  PRIMARY KEY (id_plan),
+    id_plan INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(80) NOT NULL,
+    descripcion VARCHAR(255) NOT NULL,
+    tipo VARCHAR(15) NOT NULL,
+    precio DECIMAL(12,2) NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE NOT NULL,
+    estado VARCHAR(10) NOT NULL DEFAULT 'activo',
+    id_prestador INT NOT NULL,
+    CONSTRAINT pk_plan PRIMARY KEY (id_plan),
     CONSTRAINT uq_plan_prestador_nombre UNIQUE (id_prestador, nombre),
-    CONSTRAINT ck_plan_tipo   CHECK (tipo IN ('básico', 'estándar', 'premium', 'todo incluido')),
+    CONSTRAINT ck_plan_tipo CHECK (tipo IN ('básico', 'estándar', 'premium', 'todo incluido')),
     CONSTRAINT ck_plan_precio CHECK (precio > 0),
     CONSTRAINT ck_plan_fechas CHECK (fecha_fin >= fecha_inicio),
     CONSTRAINT ck_plan_estado CHECK (estado IN ('activo', 'inactivo')),
@@ -296,9 +316,9 @@ CREATE TABLE Plan (
 -- Atraccion (qué prestadores venden entradas de qué atracciones).
 -- Su clave primaria es COMPUESTA: la pareja no se repite.
 CREATE TABLE Prestador_atraccion (
-    id_prestador      INT   NOT NULL,
-    id_atraccion      INT   NOT NULL,
-    fecha_afiliacion  DATE  NOT NULL,
+    id_prestador INT NOT NULL,
+    id_atraccion INT NOT NULL,
+    fecha_afiliacion DATE NOT NULL,
     CONSTRAINT pk_prestador_atraccion PRIMARY KEY (id_prestador, id_atraccion),
     -- RESTRICT: los prestadores no se borran (pasan a 'retirado')
     CONSTRAINT fk_prest_atr_prestador
@@ -314,12 +334,12 @@ CREATE TABLE Prestador_atraccion (
 -- una con su aforo y su precio. Dentro de una función, el nombre de
 -- zona no se repite.
 CREATE TABLE Zona (
-    id_zona     INT            NOT NULL AUTO_INCREMENT,
-    nombre      VARCHAR(30)    NOT NULL,
-    aforo       INT            NOT NULL,
-    precio      DECIMAL(12,2)  NOT NULL,
-    id_funcion  INT            NOT NULL,
-    CONSTRAINT pk_zona                PRIMARY KEY (id_zona),
+    id_zona INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(30) NOT NULL,
+    aforo INT NOT NULL,
+    precio DECIMAL(12,2)  NOT NULL,
+    id_funcion  INT NOT NULL,
+    CONSTRAINT pk_zona PRIMARY KEY (id_zona),
     CONSTRAINT uq_zona_funcion_nombre UNIQUE (id_funcion, nombre),
     CONSTRAINT ck_zona_aforo  CHECK (aforo > 0),
     CONSTRAINT ck_zona_precio CHECK (precio >= 0),
@@ -332,7 +352,7 @@ CREATE TABLE Zona (
 ) COMMENT = 'Zonas de cada función, con aforo y precio propios';
 
 -- ---------------------------------------------------------------------
--- BLOQUE 5 · Últimas HIJAS: Reserva y las que dependen de ella.
+-- BLOQUE 5 - HIJAS: Reserva y las que dependen de ella.
 -- ---------------------------------------------------------------------
 
 -- Reserva: compromiso de un cliente con un prestador para una fecha.
@@ -342,20 +362,20 @@ CREATE TABLE Zona (
 -- estar activo y vigente en la fecha del servicio, y una reserva solo
 -- pasa a 'completada' si antes estuvo 'confirmada'.
 CREATE TABLE Reserva (
-    id_reserva      INT            NOT NULL AUTO_INCREMENT,
-    fecha_creacion  DATE           NOT NULL DEFAULT (CURRENT_DATE),
-    fecha_servicio  DATE           NOT NULL,
-    estado          VARCHAR(12)    NOT NULL DEFAULT 'pendiente',
-    valor_total     DECIMAL(12,2)  NOT NULL,
-    canal           VARCHAR(25)    NOT NULL,
-    id_cliente      INT            NOT NULL,
-    id_plan         INT            NOT NULL,
-    CONSTRAINT pk_reserva        PRIMARY KEY (id_reserva),
+    id_reserva INT NOT NULL AUTO_INCREMENT,
+    fecha_creacion DATE NOT NULL DEFAULT (CURRENT_DATE),
+    fecha_servicio DATE NOT NULL,
+    estado VARCHAR(12) NOT NULL DEFAULT 'pendiente',
+    valor_total DECIMAL(12,2)  NOT NULL,
+    canal VARCHAR(25) NOT NULL,
+    id_cliente INT NOT NULL,
+    id_plan INT NOT NULL,
+    CONSTRAINT pk_reserva PRIMARY KEY (id_reserva),
     CONSTRAINT ck_reserva_fechas CHECK (fecha_servicio >= fecha_creacion),
     CONSTRAINT ck_reserva_estado CHECK (estado IN ('pendiente', 'confirmada',
                                                    'cancelada', 'completada')),
-    CONSTRAINT ck_reserva_valor  CHECK (valor_total >= 0),
-    CONSTRAINT ck_reserva_canal  CHECK (canal IN ('web', 'aplicación móvil', 'teléfono',
+    CONSTRAINT ck_reserva_valor CHECK (valor_total >= 0),
+    CONSTRAINT ck_reserva_canal CHECK (canal IN ('web', 'aplicación móvil', 'teléfono',
                                                   'mostrador', 'agencia intermediaria')),
     -- RESTRICT: protege el historial contable del cliente
     CONSTRAINT fk_reserva_cliente
@@ -372,17 +392,17 @@ CREATE TABLE Reserva (
 -- pasarela, que no se repite. Un pago es un registro contable: no se
 -- borra (Clase 10).
 CREATE TABLE Pago (
-    id_pago                 INT            NOT NULL AUTO_INCREMENT,
-    fecha                   DATE           NOT NULL,
-    monto                   DECIMAL(12,2)  NOT NULL,
-    metodo                  VARCHAR(20)    NOT NULL,
-    estado                  VARCHAR(12)    NOT NULL,
+    id_pago INT NOT NULL AUTO_INCREMENT,
+    fecha DATE NOT NULL,
+    monto DECIMAL(12,2) NOT NULL,
+    metodo VARCHAR(20) NOT NULL,
+    estado VARCHAR(12) NOT NULL,
     referencia_transaccion  VARCHAR(50),
-    id_reserva              INT            NOT NULL,
-    CONSTRAINT pk_pago            PRIMARY KEY (id_pago),
+    id_reserva INT NOT NULL,
+    CONSTRAINT pk_pago PRIMARY KEY (id_pago),
     CONSTRAINT uq_pago_referencia UNIQUE (referencia_transaccion),
-    CONSTRAINT ck_pago_monto      CHECK (monto > 0),
-    CONSTRAINT ck_pago_metodo     CHECK (metodo IN ('tarjeta de crédito', 'tarjeta débito',
+    CONSTRAINT ck_pago_monto CHECK (monto > 0),
+    CONSTRAINT ck_pago_metodo CHECK (metodo IN ('tarjeta de crédito', 'tarjeta débito',
                                                     'PSE', 'transferencia', 'efectivo')),
     CONSTRAINT ck_pago_estado     CHECK (estado IN ('exitoso', 'fallido',
                                                     'pendiente', 'reembolsado')),
@@ -398,45 +418,44 @@ CREATE TABLE Pago (
 -- Notificacion (ajustada en la Entrega 2 para cumplir 3FN):
 --   - ligada a una reserva  -> lleva id_reserva, id_cliente en NULL
 --     (el cliente se obtiene por la reserva)
---   - promoción             -> lleva id_cliente, id_reserva en NULL
+--   - promoción -> lleva id_cliente, id_reserva en NULL
 -- Por eso exactamente una de las dos foráneas es no nula (CHECK).
 -- Las dos foráneas son RESTRICT: MySQL no permite CASCADE ni SET NULL
 -- en columnas que están en un CHECK, y además es historial.
 -- Regla que mira otra tabla y valida la aplicación: las promociones
 -- solo van a clientes con acepta_promociones = 'sí'.
 CREATE TABLE Notificacion (
-    id_notificacion   INT           NOT NULL AUTO_INCREMENT,
-    tipo              VARCHAR(25)   NOT NULL,
-    canal             VARCHAR(10)   NOT NULL,
-    mensaje           VARCHAR(500)  NOT NULL,
-    fecha_programada  DATETIME      NOT NULL,
+    id_notificacion INT NOT NULL AUTO_INCREMENT,
+    tipo VARCHAR(25) NOT NULL,
+    canal VARCHAR(10) NOT NULL,
+    mensaje VARCHAR(500) NOT NULL,
+    fecha_programada  DATETIME NOT NULL,
     fecha_real_envio  DATETIME,
-    estado            VARCHAR(10)   NOT NULL DEFAULT 'pendiente',
-    id_cliente        INT,
-    id_reserva        INT,
+    estado VARCHAR(10) NOT NULL DEFAULT 'pendiente',
+    id_cliente INT,
+    id_reserva INT,
     CONSTRAINT pk_notificacion PRIMARY KEY (id_notificacion),
-    CONSTRAINT ck_notif_tipo   CHECK (tipo IN ('recordatorio de reserva', 'confirmación de reserva',
-                                               'confirmación de pago', 'cambio de estado',
-                                               'promoción')),
-    CONSTRAINT ck_notif_canal  CHECK (canal IN ('correo', 'SMS', 'WhatsApp')),
+    CONSTRAINT ck_notif_tipo CHECK (tipo IN ('recordatorio de reserva', 'confirmación de reserva',
+	'confirmación de pago', 'cambio de estado', 'promoción')),
+    CONSTRAINT ck_notif_canal CHECK (canal IN ('correo', 'SMS', 'WhatsApp')),
     CONSTRAINT ck_notif_estado CHECK (estado IN ('pendiente', 'enviada', 'fallida', 'leída')),
     -- Exactamente una de las dos foráneas es no nula
-    CONSTRAINT ck_notif_destino CHECK ((id_reserva IS NOT NULL AND id_cliente IS NULL)
-                                    OR (id_reserva IS NULL AND id_cliente IS NOT NULL)),
+    CONSTRAINT ck_notif_destino CHECK ((id_reserva IS NOT NULL AND id_cliente IS NULL) OR 
+    (id_reserva IS NULL AND id_cliente IS NOT NULL)),
     -- La promoción va al cliente; los demás tipos van ligados a una reserva
     CONSTRAINT ck_notif_tipo_destino CHECK ((tipo = 'promoción' AND id_cliente IS NOT NULL)
-                                         OR (tipo <> 'promoción' AND id_reserva IS NOT NULL)),
+	OR (tipo <> 'promoción' AND id_reserva IS NOT NULL)),
     -- No se puede enviar antes de la fecha programada
     CONSTRAINT ck_notif_fechas CHECK (fecha_real_envio IS NULL
-                                      OR fecha_real_envio >= fecha_programada),
+	OR fecha_real_envio >= fecha_programada),
     -- Mientras está pendiente, todavía no tiene fecha real de envío
     CONSTRAINT ck_notif_pendiente CHECK (estado <> 'pendiente' OR fecha_real_envio IS NULL),
     CONSTRAINT fk_notif_cliente
-        FOREIGN KEY (id_cliente) REFERENCES Cliente (id_cliente)
-        ON DELETE RESTRICT,
+	FOREIGN KEY (id_cliente) REFERENCES Cliente (id_cliente)
+	ON DELETE RESTRICT,
     CONSTRAINT fk_notif_reserva
-        FOREIGN KEY (id_reserva) REFERENCES Reserva (id_reserva)
-        ON DELETE RESTRICT
+	FOREIGN KEY (id_reserva) REFERENCES Reserva (id_reserva)
+	ON DELETE RESTRICT
 ) COMMENT = 'Notificaciones a los clientes: recordatorios, confirmaciones y promociones';
 
 -- Boleta: cada entrada vendida. Tiene código único y pertenece a una
@@ -447,42 +466,42 @@ CREATE TABLE Notificacion (
 -- niño solo con una de adulto en la misma reserva, y una boleta usada
 -- o anulada no vuelve a 'vendida'.
 CREATE TABLE Boleta (
-    id_boleta        INT          NOT NULL AUTO_INCREMENT,
-    codigo           VARCHAR(30)  NOT NULL,
-    estado           VARCHAR(10)  NOT NULL DEFAULT 'vendida',
-    id_reserva       INT          NOT NULL,
-    id_zona          INT          NOT NULL,
-    id_tipo_entrada  INT          NOT NULL,
-    id_combo         INT,
-    CONSTRAINT pk_boleta        PRIMARY KEY (id_boleta),
+    id_boleta INT NOT NULL AUTO_INCREMENT,
+    codigo VARCHAR(30) NOT NULL,
+    estado VARCHAR(10) NOT NULL DEFAULT 'vendida',
+    id_reserva INT NOT NULL,
+    id_zona INT NOT NULL,
+    id_tipo_entrada INT NOT NULL,
+    id_combo INT,
+    CONSTRAINT pk_boleta PRIMARY KEY (id_boleta),
     CONSTRAINT uq_boleta_codigo UNIQUE (codigo),
     CONSTRAINT ck_boleta_estado CHECK (estado IN ('vendida', 'usada', 'anulada')),
     -- RESTRICT en todas: la boleta es la prueba de la venta
     CONSTRAINT fk_boleta_reserva
-        FOREIGN KEY (id_reserva) REFERENCES Reserva (id_reserva)
-        ON DELETE RESTRICT,
+	FOREIGN KEY (id_reserva) REFERENCES Reserva (id_reserva)
+	ON DELETE RESTRICT,
     CONSTRAINT fk_boleta_zona
-        FOREIGN KEY (id_zona) REFERENCES Zona (id_zona)
-        ON DELETE RESTRICT,
+	FOREIGN KEY (id_zona) REFERENCES Zona (id_zona)
+	ON DELETE RESTRICT,
     CONSTRAINT fk_boleta_tipo_entrada
-        FOREIGN KEY (id_tipo_entrada) REFERENCES Tipo_entrada (id_tipo_entrada)
-        ON DELETE RESTRICT,
+	FOREIGN KEY (id_tipo_entrada) REFERENCES Tipo_entrada (id_tipo_entrada)
+	ON DELETE RESTRICT,
     CONSTRAINT fk_boleta_combo
-        FOREIGN KEY (id_combo) REFERENCES Combo (id_combo)
-        ON DELETE RESTRICT
+	FOREIGN KEY (id_combo) REFERENCES Combo (id_combo)
+	ON DELETE RESTRICT
 ) COMMENT = 'Boletas vendidas, sueltas o como parte de un combo';
 
 -- ---------------------------------------------------------------------
--- BLOQUE 6 · Índices adicionales (Tabla 40 de la Entrega 2).
+-- BLOQUE 6 - Índices adicionales (Tabla 40 de la Entrega 2).
 -- MySQL ya crea índices para las PK, los UNIQUE y las foráneas; estos
 -- son para columnas que los reportes ordenan o buscan seguido.
 -- ---------------------------------------------------------------------
 CREATE INDEX ix_reserva_fecha_creacion ON Reserva (fecha_creacion);
-CREATE INDEX ix_funcion_fecha          ON Funcion (fecha);
+CREATE INDEX ix_funcion_fecha ON Funcion (fecha);
 CREATE INDEX ix_notif_fecha_programada ON Notificacion (fecha_programada);
 
 -- ---------------------------------------------------------------------
--- BLOQUE 7 · Verificar lo creado (como el BLOQUE 3 de la Clase 10).
+-- BLOQUE 7 - Verificar lo creado (como el BLOQUE 3 de la Clase 10).
 -- En Oracle se consultan user_tables y user_constraints; en MySQL la
 -- información equivalente está en information_schema.
 -- Solo sirven para MIRAR lo creado: no cambian nada.

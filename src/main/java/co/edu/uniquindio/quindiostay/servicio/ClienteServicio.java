@@ -13,9 +13,9 @@ import org.springframework.stereotype.Service;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 import java.util.Map;
-import java.time.Period;
 
 /**
  * Lógica de negocio de Cliente, incluido el registro de un cliente nuevo
@@ -123,10 +123,9 @@ public class ClienteServicio {
         }
     }
 
-
     /**
      * La fecha de nacimiento no puede ser posterior a hoy, el documento debe tener un
-     * formato válido según su tipo, y la cédula de ciudadanía exige ser mayor de edad.
+     * formato válido según su tipo, y la edad debe corresponder al tipo de documento.
      * Ninguna va en un CHECK: dependen de la fecha de HOY (no determinista en MySQL) o
      * cruzan con otra columna de la misma fila (tipo_documento).
      */
@@ -134,6 +133,10 @@ public class ClienteServicio {
         if (x.getFechaNacimiento() != null && x.getFechaNacimiento().isAfter(LocalDate.now())) {
             throw new ReglaNegocioException("La fecha de nacimiento no puede ser posterior a hoy.");
         }
+        validarNombre("El primer nombre", x.getPrimerNombre(), true);
+        validarNombre("El segundo nombre", x.getSegundoNombre(), false);
+        validarNombre("El primer apellido", x.getPrimerApellido(), true);
+        validarNombre("El segundo apellido", x.getSegundoApellido(), false);
         validarDocumento(x);
         if (x.getFechaNacimiento() != null && "cédula de ciudadanía".equals(x.getTipoDocumento())) {
             int edad = Period.between(x.getFechaNacimiento(), LocalDate.now()).getYears();
@@ -141,11 +144,32 @@ public class ClienteServicio {
                 throw new ReglaNegocioException("Para registrarse con cédula de ciudadanía hay que ser mayor de edad (18 años). Use tarjeta de identidad si es menor.");
             }
         }
+        if (x.getFechaNacimiento() != null && "tarjeta de identidad".equals(x.getTipoDocumento())) {
+            int edad = Period.between(x.getFechaNacimiento(), LocalDate.now()).getYears();
+            if (edad < 7 || edad > 17) {
+                throw new ReglaNegocioException("La tarjeta de identidad es solo para edades entre 7 y 17 años. Use cédula de ciudadanía si ya es mayor de edad.");
+            }
+        }
+    }
+
+    /** Solo letras (con tildes y ñ) y espacios; el segundo nombre/apellido puede ir vacío. */
+    private void validarNombre(String etiqueta, String valor, boolean obligatorio) {
+        if (valor == null || valor.isBlank()) {
+            if (obligatorio) {
+                throw new ReglaNegocioException(etiqueta + " es obligatorio.");
+            }
+            return;
+        }
+        if (!valor.matches("[\\p{L} ]+")) {
+            throw new ReglaNegocioException(etiqueta + " solo puede tener letras (sin números ni caracteres especiales).");
+        }
     }
 
     /**
-     * El pasaporte sí puede combinar letras y números (así son los pasaportes reales),
-     * por eso solo se exige "solo dígitos" para los documentos colombianos numéricos.
+     * El pasaporte sí puede combinar letras MAYÚSCULAS y números (así son los
+     * pasaportes reales); los demás documentos son solo dígitos. Son las mismas
+     * reglas que ahora exige el CHECK ck_cliente_numero_doc en la base de datos
+     * (Parte A): se repiten aquí para que el mensaje de error sea inmediato.
      */
     private void validarDocumento(Cliente x) {
         String tipo = x.getTipoDocumento();
@@ -153,14 +177,12 @@ public class ClienteServicio {
         if (numero == null || tipo == null) {
             return;
         }
-        boolean esNumerico = tipo.equals("cédula de ciudadanía") || tipo.equals("cédula de extranjería")
-                || tipo.equals("tarjeta de identidad");
-        if (esNumerico) {
-            if (!numero.matches("[0-9]{6,15}")) {
-                throw new ReglaNegocioException("El número de documento debe tener solo dígitos, entre 6 y 15.");
+        if ("pasaporte".equals(tipo)) {
+            if (!numero.matches("[A-Z0-9]{5,15}")) {
+                throw new ReglaNegocioException("El número de pasaporte debe tener solo letras mayúsculas y dígitos, entre 5 y 15 caracteres.");
             }
-        } else if (numero.length() < 6) {
-            throw new ReglaNegocioException("El número de documento debe tener al menos 6 caracteres.");
+        } else if (!numero.matches("[0-9]{6,15}")) {
+            throw new ReglaNegocioException("El número de documento debe tener solo dígitos, entre 6 y 15.");
         }
     }
 }

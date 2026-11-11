@@ -15,7 +15,7 @@
 USE quindiostay;
 
 -- ---------------------------------------------------------------------
--- Vista 1 · vista_boleta_detalle
+-- Vista 1 - vista_boleta_detalle
 -- Cada boleta con todo lo que la describe: su reserva y cliente, la
 -- zona, la función (fecha y horario), la atracción, el tipo de entrada,
 -- el combo (si salió de uno) y su valor.
@@ -30,24 +30,24 @@ USE quindiostay;
 CREATE OR REPLACE VIEW vista_boleta_detalle AS
 SELECT b.id_boleta,
        b.codigo,
-       b.estado                AS estado_boleta,
+       b.estado AS estado_boleta,
        b.id_reserva,
        r.id_cliente,
        a.id_atraccion,
-       a.nombre                AS atraccion,
+       a.nombre AS atraccion,
        f.id_funcion,
-       f.fecha                 AS fecha_funcion,
+       f.fecha AS fecha_funcion,
        f.hora_apertura,
        f.hora_cierre,
-       f.estado                AS estado_funcion,
+       f.estado AS estado_funcion,
        z.id_zona,
-       z.nombre                AS zona,
-       z.precio                AS precio_zona,
+       z.nombre AS zona,
+       z.precio AS precio_zona,
        t.id_tipo_entrada,
-       t.nombre                AS tipo_entrada,
+       t.nombre AS tipo_entrada,
        t.porcentaje_descuento,
        b.id_combo,
-       c.nombre                AS combo,
+       c.nombre AS combo,
        CASE
            WHEN b.id_combo IS NULL
            THEN ROUND(z.precio * (100 - t.porcentaje_descuento) / 100, -2)
@@ -62,7 +62,7 @@ INNER JOIN Tipo_entrada t ON b.id_tipo_entrada = t.id_tipo_entrada
 LEFT JOIN Combo c         ON b.id_combo = c.id_combo;
 
 -- ---------------------------------------------------------------------
--- Vista 2 · vista_ocupacion_zona
+-- Vista 2 - vista_ocupacion_zona
 -- Cada zona con su aforo, las boletas vendidas (las que no están
 -- anuladas) y los cupos que le quedan.
 -- LEFT JOIN con Boleta: así también salen las zonas que no han vendido
@@ -73,67 +73,73 @@ LEFT JOIN Combo c         ON b.id_combo = c.id_combo;
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE VIEW vista_ocupacion_zona AS
 SELECT z.id_zona,
-       z.nombre                         AS zona,
+       z.nombre AS zona,
        z.aforo,
        z.precio,
        f.id_funcion,
-       f.fecha                          AS fecha_funcion,
-       f.estado                         AS estado_funcion,
+       f.fecha AS fecha_funcion,
+       f.estado AS estado_funcion,
        a.id_atraccion,
-       a.nombre                         AS atraccion,
-       COUNT(b.id_boleta)               AS boletas_vendidas,
-       z.aforo - COUNT(b.id_boleta)     AS cupos_disponibles
+       a.nombre AS atraccion,
+       COUNT(b.id_boleta) AS boletas_vendidas,
+       z.aforo - COUNT(b.id_boleta) AS cupos_disponibles
 FROM Zona z
 INNER JOIN Funcion f   ON z.id_funcion = f.id_funcion
 INNER JOIN Atraccion a ON f.id_atraccion = a.id_atraccion
-LEFT JOIN Boleta b     ON b.id_zona = z.id_zona
-                      AND b.estado <> 'anulada'
+LEFT JOIN Boleta b ON b.id_zona = z.id_zona
+AND b.estado <> 'anulada'
 GROUP BY z.id_zona, z.nombre, z.aforo, z.precio,
          f.id_funcion, f.fecha, f.estado, a.id_atraccion, a.nombre;
 
 -- ---------------------------------------------------------------------
--- Vista 3 · vista_estado_pago_reserva
+-- Vista 3 - vista_estado_pago_reserva
 -- Cada reserva con lo que se ha pagado y si está pagada.
--- Regla del enunciado (1.5): una reserva se considera pagada solo cuando
+-- Regla del proyecto: una reserva se considera pagada solo cuando
 -- la suma de sus pagos EXITOSOS cubre su valor total. Los pagos fallidos,
 -- pendientes y reembolsados no cuentan.
--- La suma se calcula con una subconsulta por cada reserva; COALESCE
--- convierte en 0 el NULL de las reservas que no tienen ningún pago.
+-- Tipo de subconsulta (Clase 17):
+--   * Tabla derivada t (en el FROM, con alias): una fila por reserva con
+--     su total pagado.
+--   * El total pagado es una subconsulta ESCALAR CORRELACIONADA (usa
+--     r.id_reserva de afuera). COALESCE convierte en 0 el NULL de las
+--     reservas que no tienen ningún pago exitoso.
+--   * La consulta externa calcula el saldo y si está pagada. Así la suma
+--     se escribe una sola vez.
 -- Uso: comprobantes, factura, y la regla de que una boleta solo pasa a
 -- 'usada' si su reserva está pagada.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE VIEW vista_estado_pago_reserva AS
-SELECT r.id_reserva,
-       r.id_cliente,
-       r.fecha_creacion,
-       r.fecha_servicio,
-       r.estado                                AS estado_reserva,
-       r.valor_total,
-       COALESCE((SELECT SUM(p.monto)
-                 FROM Pago p
-                 WHERE p.id_reserva = r.id_reserva
-                   AND p.estado = 'exitoso'), 0) AS total_pagado,
-       r.valor_total - COALESCE((SELECT SUM(p.monto)
-                                 FROM Pago p
-                                 WHERE p.id_reserva = r.id_reserva
-                                   AND p.estado = 'exitoso'), 0) AS saldo,
+SELECT t.id_reserva,
+       t.id_cliente,
+       t.fecha_creacion,
+       t.fecha_servicio,
+       t.estado_reserva,
+       t.valor_total,
+       t.total_pagado,
+       t.valor_total - t.total_pagado AS saldo,
        CASE
-           WHEN COALESCE((SELECT SUM(p.monto)
-                          FROM Pago p
-                          WHERE p.id_reserva = r.id_reserva
-                            AND p.estado = 'exitoso'), 0) >= r.valor_total
-           THEN 'sí'
+           WHEN t.total_pagado >= t.valor_total THEN 'sí'
            ELSE 'no'
-       END                                     AS pagada
-FROM Reserva r;
+       END AS pagada
+FROM ( SELECT r.id_reserva,
+		r.id_cliente,
+		r.fecha_creacion,
+		r.fecha_servicio,
+		r.estado AS estado_reserva,
+		r.valor_total,
+           COALESCE((SELECT SUM(p.monto)
+                     FROM Pago p
+                     WHERE p.id_reserva = r.id_reserva AND p.estado = 'exitoso'), 0) AS total_pagado
+    FROM Reserva r
+) t;
 
 -- ---------------------------------------------------------------------
--- Vista 4 · vista_notificacion_cliente
+-- Vista 4 - vista_notificacion_cliente
 -- Todas las notificaciones con el cliente al que van.
 -- Desde la Entrega 2 (3FN), una notificación de una reserva guarda solo
 -- id_reserva (el cliente se obtiene por la reserva) y una promoción
 -- guarda solo id_cliente. La vista junta los dos casos:
--- COALESCE toma n.id_cliente si existe (promoción) y, si es NULL, toma
+-- COALESCE toma n.id_cliente si existe (promoción) y si es NULL, toma
 -- el cliente de la reserva (r.id_cliente).
 -- LEFT JOIN con Reserva para no perder las promociones (no tienen reserva).
 -- Uso: historial de notificaciones del cliente (RF05).
@@ -152,7 +158,7 @@ FROM Notificacion n
 LEFT JOIN Reserva r ON n.id_reserva = r.id_reserva;
 
 -- ---------------------------------------------------------------------
--- Vista 5 · vista_reserva_detalle
+-- Vista 5 - vista_reserva_detalle
 -- Cada reserva con los datos de su cliente, su plan, el prestador que la
 -- vende y el municipio del prestador.
 -- La reserva no guarda el prestador: se obtiene por el plan (3FN,
@@ -167,7 +173,7 @@ CREATE OR REPLACE VIEW vista_reserva_detalle AS
 SELECT r.id_reserva,
        r.fecha_creacion,
        r.fecha_servicio,
-       r.estado                AS estado_reserva,
+       r.estado AS estado_reserva,
        r.valor_total,
        r.canal,
        c.id_cliente,
@@ -178,24 +184,24 @@ SELECT r.id_reserva,
        c.email,
        c.telefono,
        pl.id_plan,
-       pl.nombre               AS plan,
-       pl.tipo                 AS tipo_plan,
+       pl.nombre AS plan,
+       pl.tipo AS tipo_plan,
        pr.id_prestador,
-       pr.nombre_comercial     AS prestador,
-       pr.NIT_documento        AS nit_prestador,
-       pr.RNT                  AS rnt_prestador,
-       m.nombre                AS municipio_prestador
+       pr.nombre_comercial AS prestador,
+       pr.NIT_documento AS nit_prestador,
+       pr.RNT AS rnt_prestador,
+       m.nombre AS municipio_prestador
 FROM Reserva r
-INNER JOIN Cliente c    ON r.id_cliente = c.id_cliente
-INNER JOIN Plan pl      ON r.id_plan = pl.id_plan
+INNER JOIN Cliente c ON r.id_cliente = c.id_cliente
+INNER JOIN Plan pl ON r.id_plan = pl.id_plan
 INNER JOIN Prestador pr ON pl.id_prestador = pr.id_prestador
 INNER JOIN Municipio m  ON pr.id_municipio = m.id_municipio;
 
 -- ---------------------------------------------------------------------
--- Vista 6 · vista_planes_para_vender
+-- Vista 6 - vista_planes_para_vender
 -- Los planes con los que se pueden vender boletas de cada atracción:
 -- planes activos de prestadores activos y afiliados a la atracción.
--- Regla del enunciado (1.4) y de la Entrega 1: solo se reserva un plan
+-- Regla del proyecto  y de la Entrega 1: solo se reserva un plan
 -- activo y vigente en la fecha del servicio, de un prestador afiliado a
 -- la atracción de las boletas.
 -- La vista resuelve "activo" y "afiliado". La VIGENCIA depende de la
@@ -207,19 +213,19 @@ INNER JOIN Municipio m  ON pr.id_municipio = m.id_municipio;
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE VIEW vista_planes_para_vender AS
 SELECT pa.id_atraccion,
-       a.nombre                AS atraccion,
+       a.nombre AS atraccion,
        pr.id_prestador,
-       pr.nombre_comercial     AS prestador,
+       pr.nombre_comercial AS prestador,
        pa.fecha_afiliacion,
        pl.id_plan,
-       pl.nombre               AS plan,
-       pl.tipo                 AS tipo_plan,
+       pl.nombre AS plan,
+       pl.tipo AS tipo_plan,
        pl.precio,
        pl.fecha_inicio,
        pl.fecha_fin
 FROM Prestador_atraccion pa
-INNER JOIN Atraccion a  ON pa.id_atraccion = a.id_atraccion
+INNER JOIN Atraccion a ON pa.id_atraccion = a.id_atraccion
 INNER JOIN Prestador pr ON pa.id_prestador = pr.id_prestador
-INNER JOIN Plan pl      ON pl.id_prestador = pr.id_prestador
+INNER JOIN Plan pl ON pl.id_prestador = pr.id_prestador
 WHERE pl.estado = 'activo'
   AND pr.estado = 'activo';
