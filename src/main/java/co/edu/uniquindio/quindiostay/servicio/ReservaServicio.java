@@ -187,7 +187,7 @@ public class ReservaServicio {
                 dao.cambiarEstado(con, id, "cancelada");
                 boletaDAO.anularDeReserva(con, id);
                 r.setEstado("cancelada");
-                notificaciones.cambioEstado(con, r, "cancelada");
+                notificaciones.cambioEstado(con, r, "cancelada", reembolso);
                 con.commit();
                 return reembolso;
             } catch (SQLException | RuntimeException e) {

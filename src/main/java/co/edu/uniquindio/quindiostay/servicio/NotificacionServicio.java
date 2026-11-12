@@ -168,10 +168,21 @@ public class NotificacionServicio {
     }
 
     public void cambioEstado(Connection con, Reserva r, String nuevoEstado) throws SQLException {
+        cambioEstado(con, r, nuevoEstado, null);
+    }
+
+    /** Igual que cambioEstado, pero con un dato adicional en el mensaje (ej. el valor reembolsado). */
+    public void cambioEstado(Connection con, Reserva r, String nuevoEstado, java.math.BigDecimal reembolso) throws SQLException {
         boolean ingles = esIngles(r.getIdCliente());
+        String extra = "";
+        if (reembolso != null && reembolso.signum() > 0) {
+            String valor = String.format("%,.0f", reembolso).replace(',', '.');
+            extra = ingles ? " We refunded $" + valor + "."
+                    : " Te reembolsamos $" + valor + ".";
+        }
         crearDeReserva(con, r, "cambio de estado", ahora(),
-                ingles ? "Your booking #" + r.getIdReserva() + " changed to status: " + nuevoEstado + "."
-                       : "Tu reserva #" + r.getIdReserva() + " cambió a estado: " + nuevoEstado + ".");
+                (ingles ? "Your booking #" + r.getIdReserva() + " changed to status: " + nuevoEstado + "."
+                        : "Tu reserva #" + r.getIdReserva() + " cambió a estado: " + nuevoEstado + ".") + extra);
     }
 
     /**
@@ -190,6 +201,14 @@ public class NotificacionServicio {
         crearDeReserva(con, r, "recordatorio de reserva", fecha,
                 ingles ? "Reminder: your visit for booking #" + r.getIdReserva() + " is on " + r.getFechaServicio().format(DMY) + ". Bring your QS tickets."
                        : "Recordatorio: tu visita de la reserva #" + r.getIdReserva() + " es el " + r.getFechaServicio().format(DMY) + ". Lleva tus boletas QS.");
+    }
+
+    /** Se anuló UNA boleta suelta (no toda la reserva), por ejemplo desde Boletas → Eliminar. */
+    public void boletaAnulada(Connection con, Reserva r, String codigoBoleta) throws SQLException {
+        boolean ingles = esIngles(r.getIdCliente());
+        crearDeReserva(con, r, "cambio de estado", ahora(),
+                ingles ? "Your ticket " + codigoBoleta + " from booking #" + r.getIdReserva() + " was cancelled."
+                        : "Tu boleta " + codigoBoleta + " de la reserva #" + r.getIdReserva() + " fue anulada.");
     }
 
     private void crearDeReserva(Connection con, Reserva r, String tipo, LocalDateTime fecha, String mensaje) throws SQLException {

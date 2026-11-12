@@ -5,6 +5,11 @@ body { background: #f6f8f7; }
 .table-success { --bs-table-bg: var(--qs-verde-claro); }
 .btn-success { background: var(--qs-verde); border-color: var(--qs-verde); }
 .card-inicio { border-left: 5px solid var(--qs-verde); }
+.hero-degradado {
+    background: linear-gradient(-45deg, #163f29, #1f6f43, #4f9d69, #c9a227);
+    background-size: 400% 400%;
+    animation: qsDegradado 16s ease infinite;
+}
 .login-fondo { min-height: 100vh; background: linear-gradient(135deg, #1f6f43 0%, #4f9d69 60%, #c9a227 100%); }
 .badge.estado { background: #6c757d; }
 .badge.estado.e-activo, .badge.estado.e-vendida, .badge.estado.e-confirmada, .badge.estado.e-exitoso,
@@ -15,3 +20,28 @@ body { background: #f6f8f7; }
 .badge.estado.e-retirado, .badge.estado.e-bloqueado, .badge.estado.e-inactivo { background: #dc3545; }
 .badge.estado.e-reembolsado, .badge.estado.e-suspendido { background: #6f42c1; }
 .paginador button { min-width: 2.2rem; }
+.fondo-degradado {
+    min-height: 100vh;
+    background: linear-gradient(-45deg, #163f29, #1f6f43, #4f9d69, #c9a227);
+    background-size: 400% 400%;
+    animation: qsDegradado 16s ease infinite;
+}
+@keyframes qsDegradado {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+.tarjeta-acceso {
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(2px);
+    animation: qsAparece 0.5s ease both;
+}
+@keyframes qsAparece {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .fondo-degradado { animation: none; }
+    .tarjeta-acceso { animation: none; }
+    .hero-degradado { animation: none; }
+}

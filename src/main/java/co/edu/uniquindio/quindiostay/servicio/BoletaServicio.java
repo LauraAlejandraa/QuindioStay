@@ -2,8 +2,10 @@ package co.edu.uniquindio.quindiostay.servicio;
 
 import co.edu.uniquindio.quindiostay.dao.BoletaDAO;
 import co.edu.uniquindio.quindiostay.dao.ConexionBD;
+import co.edu.uniquindio.quindiostay.dao.ReservaDAO;
 import co.edu.uniquindio.quindiostay.dao.VistaDAO;
 import co.edu.uniquindio.quindiostay.modelo.Boleta;
+import co.edu.uniquindio.quindiostay.modelo.Reserva;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -25,12 +27,17 @@ public class BoletaServicio {
     private final VistaDAO vistaDAO;
     private final ConexionBD conexionBD;
     private final VentaServicio ventaServicio;
+    private final ReservaDAO reservaDAO;
+    private final NotificacionServicio notificaciones;
 
-    public BoletaServicio(BoletaDAO dao, VistaDAO vistaDAO, ConexionBD conexionBD, VentaServicio ventaServicio) {
+    public BoletaServicio(BoletaDAO dao, VistaDAO vistaDAO, ConexionBD conexionBD, VentaServicio ventaServicio,
+                          ReservaDAO reservaDAO, NotificacionServicio notificaciones) {
         this.dao = dao;
         this.vistaDAO = vistaDAO;
         this.conexionBD = conexionBD;
         this.ventaServicio = ventaServicio;
+        this.reservaDAO = reservaDAO;
+        this.notificaciones = notificaciones;
     }
 
     public List<Boleta> listarTodos() {
@@ -99,6 +106,12 @@ public class BoletaServicio {
         }
         try (Connection con = conexionBD.getConexion()) {
             dao.cambiarEstado(con, b.getIdBoleta(), nuevo);
+            if ("anulada".equals(nuevo)) {
+                Reserva r = reservaDAO.buscarPorId(con, b.getIdReserva());
+                if (r != null) {
+                    notificaciones.boletaAnulada(con, r, b.getCodigo());
+                }
+            }
         } catch (SQLException e) {
             throw new ReglaNegocioException(MensajesError.traducir(e));
         }
