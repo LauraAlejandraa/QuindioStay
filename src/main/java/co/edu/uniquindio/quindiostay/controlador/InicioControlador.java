@@ -1,7 +1,9 @@
 package co.edu.uniquindio.quindiostay.controlador;
 
 import co.edu.uniquindio.quindiostay.dao.VistaDAO;
+import co.edu.uniquindio.quindiostay.modelo.SesionUsuario;
 import co.edu.uniquindio.quindiostay.servicio.MensajesError;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,9 +22,12 @@ public class InicioControlador {
     }
 
     @GetMapping("/inicio")
-    public String inicio(@RequestParam(required = false) String sinPermiso, Model model) {
+    public String inicio(@RequestParam(required = false) String sinPermiso, HttpSession session, Model model) {
         try {
-            model.addAttribute("resumen", vistaDAO.resumenInicio());
+            SesionUsuario s = Sesiones.de(session);
+            // El encargado solo ve las cifras de su prestador; los demás internos, las de toda la plataforma
+            model.addAttribute("resumen", s.isEncargado() ? vistaDAO.resumenInicioPrestador(s.getIdPrestador())
+                                                          : vistaDAO.resumenInicio());
         } catch (SQLException e) {
             model.addAttribute("error", MensajesError.traducir(e));
         }

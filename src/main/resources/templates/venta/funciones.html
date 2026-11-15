@@ -20,7 +20,9 @@
         <td th:text="${#dates.format(f.fecha, 'EEE dd/MM/yyyy')}"></td>
         <td th:text="${f.hora_apertura} + ' a ' + ${f.hora_cierre}"></td>
         <td th:text="${f.atraccion}"></td>
-        <td class="text-end" th:text="${f.cupos}"></td>
+        <td class="text-end"><span th:text="${f.cupos}"></span>
+          <div class="small text-muted" th:if="${f.zonas == 0}">sin zonas: créelas en Boletería → Zonas</div>
+          <div class="small text-muted" th:if="${f.zonas > 0 and f.cupos == 0}">agotada</div></td>
         <td class="text-end"><a class="btn btn-sm btn-success" th:classappend="${f.cupos == 0} ? 'disabled'" th:href="@{/venta/funcion/{id}(id=${f.id_funcion})}">Escoger</a></td>
       </tr>
     </tbody>

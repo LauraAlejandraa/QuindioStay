@@ -86,6 +86,14 @@ public class PrestadorAtraccionDAO {
         }
     }
 
+    /** Quita todas las afiliaciones de una atracción (dentro de la transacción que la elimina). */
+    public void eliminarPorAtraccion(Connection con, int idAtraccion) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement("DELETE FROM Prestador_atraccion WHERE id_atraccion = ?")) {
+            ps.setInt(1, idAtraccion);
+            ps.executeUpdate();
+        }
+    }
+
     /** ¿El prestador está afiliado a la atracción? (regla del plan de la reserva). */
     public boolean estaAfiliado(int idPrestador, int idAtraccion) throws SQLException {
         return buscarPorId(idPrestador, idAtraccion) != null;

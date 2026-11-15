@@ -10,6 +10,7 @@ import co.edu.uniquindio.quindiostay.modelo.PerfilCliente;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -103,16 +104,62 @@ public class ClienteServicio {
         }
     }
 
-    /** Tabla 39: un cliente solo se borra si no tiene reservas (su cuenta y perfil se van por CASCADE). */
+    /**
+     * Eliminar un cliente (pestaña Clientes). Regla (Tabla 39: el historial no se borra):
+     *   - SÍ se elimina si no tiene reservas (de ningún estado) ni notificaciones:
+     *     por ejemplo, alguien que se registró y nunca compró. Su cuenta y su perfil
+     *     se van con él (ON DELETE CASCADE).
+     *   - NO se elimina si tiene reservas (pendientes, confirmadas, completadas o
+     *     canceladas), y con ellas sus boletas, combos comprados y pagos; ni si tiene
+     *     notificaciones. Es historial contable.
+     * Si lo que se quiere es que ya no entre al sistema, se elimina su CUENTA
+     * (Núcleo → Cuentas de clientes), con su propia regla (CuentaServicio.eliminar).
+     */
     public void eliminar(int id) {
+        Cliente c = buscarPorId(id);
         try {
-            if (dao.contarReservas(id) > 0) {
-                throw new ReglaNegocioException("El cliente tiene reservas: es historial y no se puede eliminar.");
+            String motivo = motivoNoEliminar(c, dao.historial(id));
+            if (motivo != null) {
+                throw new ReglaNegocioException(motivo);
             }
             dao.eliminar(id);
         } catch (SQLException e) {
             throw new ReglaNegocioException(MensajesError.traducir(e));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    static String motivoNoEliminar(Cliente c, Map<String, Object> h) {
+        String nombre = nombre(c);
+        int reservas = (Integer) h.get("reservas");
+        int notificaciones = (Integer) h.get("notificaciones");
+        if (reservas > 0) {
+            Map<String, Integer> porEstado = (Map<String, Integer>) h.get("porEstado");
+            StringBuilder detalle = new StringBuilder();
+            porEstado.forEach((estado, n) -> {
+                if (n > 0) {
+                    detalle.append(detalle.length() == 0 ? "" : ", ").append(n).append(" ").append(estado)
+                           .append(n == 1 ? "" : "s");
+                }
+            });
+            BigDecimal pagado = (BigDecimal) h.get("pagado");
+            return "No se puede eliminar a " + nombre + ": tiene " + reservas + (reservas == 1 ? " reserva" : " reservas")
+                    + " (" + detalle + ")"
+                    + (pagado.signum() > 0 ? " y pagos por $" + String.format("%,.0f", pagado).replace(',', '.') : "")
+                    + ". Las reservas, sus boletas y combos y los pagos son historial y no se borran. "
+                    + "Si no debe volver a entrar, elimine su cuenta en «Cuentas de clientes» "
+                    + "(sus datos y su historial se conservan).";
+        }
+        if (notificaciones > 0) {
+            return "No se puede eliminar a " + nombre + ": tiene " + notificaciones
+                    + (notificaciones == 1 ? " notificación" : " notificaciones") + " (historial; las notificaciones no se borran). "
+                    + "Si no debe volver a entrar, elimine su cuenta en «Cuentas de clientes».";
+        }
+        return null;
+    }
+
+    static String nombre(Cliente c) {
+        return c.getPrimerNombre() + " " + c.getPrimerApellido() + " (doc. " + c.getNumeroDocumento() + ")";
     }
 
     public Map<Integer, String> listarOpciones() {
@@ -123,11 +170,15 @@ public class ClienteServicio {
         }
     }
 
+    /** Nadie menor de 7 años puede ser cliente, con ningún documento. */
+    public static final int EDAD_MINIMA_CLIENTE = 7;
+
     /**
      * La fecha de nacimiento no puede ser posterior a hoy, el documento debe tener un
      * formato válido según su tipo, y la edad debe corresponder al tipo de documento.
-     * Ninguna va en un CHECK: dependen de la fecha de HOY (no determinista en MySQL) o
-     * cruzan con otra columna de la misma fila (tipo_documento).
+     * La base de datos respalda el formato (ck_cliente_numero_doc) y la edad el día del
+     * registro (ck_cliente_edad_doc, con fecha_registro porque MySQL no permite CURDATE()
+     * en un CHECK); aquí se revisan con la fecha de HOY para dar un mensaje claro.
      */
     private void validar(Cliente x) {
         if (x.getFechaNacimiento() != null && x.getFechaNacimiento().isAfter(LocalDate.now())) {
@@ -148,6 +199,17 @@ public class ClienteServicio {
             int edad = Period.between(x.getFechaNacimiento(), LocalDate.now()).getYears();
             if (edad < 7 || edad > 17) {
                 throw new ReglaNegocioException("La tarjeta de identidad es solo para edades entre 7 y 17 años. Use cédula de ciudadanía si ya es mayor de edad.");
+            }
+        }
+        // Extranjeros: la misma edad mínima que la tarjeta de identidad (7 años). Un niño
+        // menor de 7 no es cliente: va como boleta de niño en la reserva de un adulto.
+        if (x.getFechaNacimiento() != null
+                && ("cédula de extranjería".equals(x.getTipoDocumento()) || "pasaporte".equals(x.getTipoDocumento()))) {
+            int edad = Period.between(x.getFechaNacimiento(), LocalDate.now()).getYears();
+            if (edad < EDAD_MINIMA_CLIENTE) {
+                throw new ReglaNegocioException("Para registrarse con " + x.getTipoDocumento() + " hay que tener al menos "
+                        + EDAD_MINIMA_CLIENTE + " años. Un niño menor de " + EDAD_MINIMA_CLIENTE
+                        + " años no se registra: entra con una boleta de niño en la reserva de un adulto.");
             }
         }
     }
@@ -183,6 +245,16 @@ public class ClienteServicio {
             }
         } else if (!numero.matches("[0-9]{6,15}")) {
             throw new ReglaNegocioException("El número de documento debe tener solo dígitos, entre 6 y 15.");
+        }
+        // El número es único sin importar el tipo (TI -> CC conserva el número).
+        // La BD lo respalda con UNIQUE (numero_documento); se revisa aquí para dar el mensaje completo.
+        try {
+            if (dao.existeNumeroDocumento(numero, x.getIdCliente())) {
+                throw new ReglaNegocioException("Ya existe un cliente con el número de documento " + numero
+                        + " (aunque sea con otro tipo de documento). El número de documento no se puede repetir.");
+            }
+        } catch (SQLException e) {
+            throw new ReglaNegocioException(MensajesError.traducir(e));
         }
     }
 }

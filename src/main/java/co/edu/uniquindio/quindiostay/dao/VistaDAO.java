@@ -1,5 +1,6 @@
 package co.edu.uniquindio.quindiostay.dao;
 
+import co.edu.uniquindio.quindiostay.servicio.Reloj;
 import org.springframework.stereotype.Repository;
 
 import java.sql.*;
@@ -99,8 +100,10 @@ public class VistaDAO {
     public List<Map<String, Object>> zonasFuturasDeAtraccion(int idAtraccion) throws SQLException {
         return consultar("SELECT o.*, f.hora_apertura FROM vista_ocupacion_zona o "
                 + "INNER JOIN Funcion f ON f.id_funcion = o.id_funcion "
-                + "WHERE o.id_atraccion = ? AND o.estado_funcion = 'programada' AND o.fecha_funcion >= CURDATE() "
-                + "AND o.cupos_disponibles > 0 ORDER BY o.fecha_funcion, o.precio", idAtraccion);
+                + "WHERE o.id_atraccion = ? AND o.estado_funcion = 'programada' "
+                + "AND (f.fecha > ? OR (f.fecha = ? AND f.hora_cierre > ?)) "   // oculta las que ya terminaron
+                + "AND o.cupos_disponibles > 0 ORDER BY o.fecha_funcion, o.precio",
+                idAtraccion, Reloj.hoy(), Reloj.hoy(), Reloj.horaActual());
     }
 
     // ---------- vista_planes_para_vender ----------
@@ -135,15 +138,21 @@ public class VistaDAO {
         return consultar("SELECT * FROM Pago WHERE id_reserva = ? ORDER BY fecha, id_pago", idReserva);
     }
 
-    /** Funciones que se pueden vender: programadas, desde hoy, con su atracción. */
+    /**
+     * Funciones que se pueden vender: programadas y que no han terminado
+     * (fecha futura, o de hoy con hora de cierre posterior a la hora actual de Colombia).
+     */
     public List<Map<String, Object>> funcionesParaVender(Integer idAtraccion) throws SQLException {
         String sql = "SELECT f.id_funcion, f.fecha, f.hora_apertura, f.hora_cierre, a.id_atraccion, a.nombre AS atraccion, "
-                + "(SELECT COALESCE(SUM(o.cupos_disponibles), 0) FROM vista_ocupacion_zona o WHERE o.id_funcion = f.id_funcion) AS cupos "
+                + "(SELECT COALESCE(SUM(o.cupos_disponibles), 0) FROM vista_ocupacion_zona o WHERE o.id_funcion = f.id_funcion) AS cupos, "
+                + "(SELECT COUNT(*) FROM Zona z WHERE z.id_funcion = f.id_funcion) AS zonas "
                 + "FROM Funcion f INNER JOIN Atraccion a ON a.id_atraccion = f.id_atraccion "
-                + "WHERE f.estado = 'programada' AND f.fecha >= CURDATE() "
+                + "WHERE f.estado = 'programada' AND (f.fecha > ? OR (f.fecha = ? AND f.hora_cierre > ?)) "
                 + (idAtraccion != null ? "AND a.id_atraccion = ? " : "")
                 + "ORDER BY f.fecha, f.hora_apertura, a.nombre";
-        return idAtraccion != null ? consultar(sql, idAtraccion) : consultar(sql);
+        LocalDate hoy = Reloj.hoy();
+        return idAtraccion != null ? consultar(sql, hoy, hoy, Reloj.horaActual(), idAtraccion)
+                                   : consultar(sql, hoy, hoy, Reloj.horaActual());
     }
 
     /** Conteos para la pantalla de inicio. */
@@ -155,5 +164,20 @@ public class VistaDAO {
                 + "(SELECT COUNT(*) FROM Cliente) AS clientes, "
                 + "(SELECT COUNT(*) FROM Funcion WHERE estado = 'programada' AND fecha >= CURDATE()) AS funciones, "
                 + "(SELECT COALESCE(SUM(monto), 0) FROM Pago WHERE estado = 'exitoso') AS ingresos"));
+    }
+
+    /** Resumen de inicio del encargado: solo cuenta lo de SU prestador (no ve datos de otros). */
+    public Map<String, Object> resumenInicioPrestador(int idPrestador) throws SQLException {
+        String reservas = "SELECT r.id_reserva FROM Reserva r INNER JOIN Plan pl ON pl.id_plan = r.id_plan WHERE pl.id_prestador = ?";
+        return primera(consultar("SELECT "
+                + "(SELECT COUNT(*) FROM (" + reservas + ") x) AS reservas, "
+                + "(SELECT COUNT(*) FROM Reserva r INNER JOIN Plan pl ON pl.id_plan = r.id_plan "
+                + "   WHERE pl.id_prestador = ? AND r.estado = 'pendiente') AS pendientes, "
+                + "(SELECT COUNT(*) FROM Boleta b WHERE b.estado <> 'anulada' AND b.id_reserva IN (" + reservas + ")) AS boletas, "
+                + "(SELECT COUNT(DISTINCT r.id_cliente) FROM Reserva r INNER JOIN Plan pl ON pl.id_plan = r.id_plan "
+                + "   WHERE pl.id_prestador = ?) AS clientes, "
+                + "(SELECT COUNT(*) FROM Funcion f WHERE f.estado = 'programada' AND f.fecha >= CURDATE() "
+                + "   AND f.id_atraccion IN (SELECT pa.id_atraccion FROM Prestador_atraccion pa WHERE pa.id_prestador = ?)) AS funciones",
+                idPrestador, idPrestador, idPrestador, idPrestador, idPrestador));
     }
 }

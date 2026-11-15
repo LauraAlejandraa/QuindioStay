@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: head('Enviar promoción')}"></head>
+<body>
+<nav th:replace="~{fragmentos :: menu}"></nav>
+<main class="container py-4">
+  <h1 class="h3">Enviar promoción</h1>
+  <p class="text-muted">Se programa una notificación para <strong>cada</strong> cliente que aceptó recibir promociones (acepta_promociones = 'sí'), cada una por el canal que ese cliente prefiere. Los clientes que no aceptan promociones no la reciben.</p>
+  <p class="mb-3" th:if="${porCanal != null}">Destinatarios hoy:
+    <span th:each="e, it : ${porCanal}"><strong th:text="${e.value}"></strong> por <span th:text="${e.key}"></span><span th:unless="${it.last}">, </span></span>
+    (total <strong th:text="${#aggregates.sum(porCanal.values())}"></strong>).</p>
+  <div th:replace="~{fragmentos :: mensajes}"></div>
+  <form th:action="@{/notificaciones/promocion}" method="post" class="card card-body shadow-sm">
+    <div class="mb-3">
+      <label class="form-label">Mensaje *</label>
+      <textarea class="form-control" name="mensaje" rows="3" required maxlength="255"></textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Fecha y hora programada *</label>
+      <input type="datetime-local" class="form-control" name="fechaProgramada" required style="max-width: 260px">
+    </div>
+    <div>
+      <button class="btn btn-success">Programar envío</button>
+      <a class="btn btn-outline-secondary" th:href="@{/notificaciones}">Cancelar</a>
+    </div>
+  </form>
+</main>
+<th:block th:replace="~{fragmentos :: scripts}"></th:block>
+</body>
+</html>

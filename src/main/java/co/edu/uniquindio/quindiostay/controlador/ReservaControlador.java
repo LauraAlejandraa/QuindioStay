@@ -60,8 +60,10 @@ public class ReservaControlador {
     @GetMapping("/{id}/editar")
     public String editar(@PathVariable int id, HttpSession session, Model model) {
         soloAdminUOperador(session);
-        model.addAttribute("obj", servicio.buscarPorId(id));
+        Reserva r = servicio.buscarPorId(id);
+        model.addAttribute("obj", r);
         cargarOpciones(model);
+        cargarEstados(model, r);
         return "reservas/formulario";
     }
 
@@ -75,8 +77,10 @@ public class ReservaControlador {
             return "redirect:/reservas/" + obj.getIdReserva();
         } catch (ReglaNegocioException e) {
             model.addAttribute("error", e.getMessage());
-            model.addAttribute("obj", servicio.buscarPorId(obj.getIdReserva()));
+            Reserva r = servicio.buscarPorId(obj.getIdReserva());
+            model.addAttribute("obj", r);
             cargarOpciones(model);
+            cargarEstados(model, r);
             return "reservas/formulario";
         }
     }
@@ -98,10 +102,10 @@ public class ReservaControlador {
     public String cancelar(@PathVariable int id, HttpSession session, RedirectAttributes redirect) {
         try {
             soloAdminUOperador(session);
+            BigDecimal pagadoAntes = servicio.pagadoExitoso(id);
             BigDecimal reembolso = servicio.cancelar(id);
             redirect.addFlashAttribute("exito", "Reserva cancelada y boletas anuladas. "
-                    + (reembolso.signum() > 0 ? "Reembolso del 80 %: $" + String.format("%,.0f", reembolso).replace(',', '.')
-                                              : "Sin reembolso (faltaban 5 días o menos, o no había pagos)."));
+                    + ReservaServicio.textoReembolso(pagadoAntes, reembolso, false));
         } catch (ReglaNegocioException e) {
             redirect.addFlashAttribute("error", e.getMessage());
         }
@@ -135,6 +139,13 @@ public class ReservaControlador {
         if (Sesiones.de(session).isEncargado()) {
             throw new ReglaNegocioException("El encargado de prestador consulta las reservas, pero no las modifica.");
         }
+    }
+
+    /** Solo los estados a los que se puede pasar (confirmada solo si está pagada; completada solo si ya llegó la fecha). */
+    private void cargarEstados(Model model, Reserva r) {
+        model.addAttribute("opcEstado", servicio.estadosPosibles(r));
+        model.addAttribute("motivoNoCompletar", "confirmada".equals(r.getEstado()) ? servicio.motivoNoCompletar(r) : null);
+        model.addAttribute("motivoNoConfirmar", servicio.motivoNoConfirmar(r));
     }
 
     private void cargarOpciones(Model model) {

@@ -6,7 +6,10 @@
 <main class="container-fluid px-4 py-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 mb-0">Notificaciones</h1>
-    <a class="btn btn-success" th:href="@{/notificaciones/nuevo}">+ Nuevo</a>
+    <div>
+      <a class="btn btn-outline-success" th:href="@{/notificaciones/promocion}">Enviar promoción</a>
+      <a class="btn btn-success" th:href="@{/notificaciones/nuevo}">+ Nuevo</a>
+    </div>
   </div>
   <div th:replace="~{fragmentos :: mensajes}"></div>
   <input class="form-control mb-2 buscador" placeholder="Buscar en la tabla..." data-tabla="tabla">
@@ -24,10 +27,14 @@
           <td th:text="${x.fechaProgramada == null ? '' : #temporals.format(x.fechaProgramada, 'dd/MM/yyyy HH:mm')}"></td>
           <td th:text="${x.fechaRealEnvio == null ? '' : #temporals.format(x.fechaRealEnvio, 'dd/MM/yyyy HH:mm')}"></td>
           <td><span class="badge estado" th:text="${x.estado}"></span></td>
-          <td th:text="${x.idCliente == null ? '' : opcCliente[x.idCliente]}"></td>
-          <td th:text="${x.idReserva == null ? '' : opcReserva[x.idReserva]}"></td>
+          <td th:text="${x.idCliente == null ? '' : opcCliente.get(x.idCliente)}"></td>
+          <td th:text="${x.idReserva == null ? '' : opcReserva.get(x.idReserva)}"></td>
           <td class="text-end text-nowrap">
-            <a class="btn btn-sm btn-outline-primary" th:href="@{/notificaciones/{id}/editar(id=${x.idNotificacion})}">Editar</a>
+            <form th:if="${x.estado == 'pendiente' || x.estado == 'fallida'}" th:action="@{/notificaciones/{id}/enviar(id=${x.idNotificacion})}" method="post" class="d-inline">
+              <button class="btn btn-sm btn-outline-success">Enviar</button>
+            </form>
+            <a class="btn btn-sm btn-outline-primary" th:href="@{/notificaciones/{id}/editar(id=${x.idNotificacion})}"
+               th:text="${editables.contains(x.estado)} ? 'Editar' : 'Ver'">Editar</a>
           </td>
         </tr>
       </tbody>

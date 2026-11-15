@@ -48,6 +48,10 @@ public class PerfilClienteServicio {
     public void guardar(PerfilCliente x) {
         try {
             validar(x);
+            if (x.getIdPerfil() != null) {
+                // El perfil es de UN cliente: al editarlo no se pasa a otro.
+                x.setIdCliente(buscarPorId(x.getIdPerfil()).getIdCliente());
+            }
             if (x.getIdPerfil() == null) {
                 dao.crear(x);
             } else {

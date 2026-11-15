@@ -86,11 +86,12 @@ public class MiCuentaControlador {
     @PostMapping("/reservas/{id}/cancelar")
     public String cancelar(@PathVariable int id, HttpSession session, RedirectAttributes redirect) {
         try {
-            esSuya(reservaServicio.detalle(id), session);
+            Map<String, Object> d = reservaServicio.detalle(id);
+            esSuya(d, session);
+            BigDecimal pagadoAntes = (BigDecimal) d.get("total_pagado");
             BigDecimal reembolso = reservaServicio.cancelar(id);
             redirect.addFlashAttribute("exito", "Reserva cancelada. "
-                    + (reembolso.signum() > 0 ? "Se le reembolsará el 80 % de lo pagado: $" + String.format("%,.0f", reembolso).replace(',', '.')
-                                              : "No hay reembolso: faltaban 5 días o menos para el servicio."));
+                    + ReservaServicio.textoReembolso(pagadoAntes, reembolso, true));
         } catch (ReglaNegocioException e) {
             redirect.addFlashAttribute("error", e.getMessage());
         }
@@ -100,6 +101,7 @@ public class MiCuentaControlador {
     @GetMapping("/notificaciones")
     public String notificaciones(HttpSession session, Model model) {
         model.addAttribute("lista", notificacionServicio.listarPorCliente(Sesiones.de(session).getIdCliente()));
+        model.addAttribute("ahora", Reloj.ahora());
         return "mi-cuenta/notificaciones";
     }
 
@@ -107,6 +109,7 @@ public class MiCuentaControlador {
     public String leida(@PathVariable int id, HttpSession session, RedirectAttributes redirect) {
         try {
             notificacionServicio.marcarLeida(id, Sesiones.de(session).getIdCliente());
+            redirect.addFlashAttribute("exito", "Notificación marcada como leída.");
         } catch (ReglaNegocioException e) {
             redirect.addFlashAttribute("error", e.getMessage());
         }

@@ -19,10 +19,16 @@
                   th:text="${#dates.format(z.fecha_funcion, 'dd/MM/yyyy')} + ' ' + ${z.hora_apertura} + ' · ' + ${z.zona} + ' · ' + ${z.cupos_disponibles} + ' cupos'"></option>
         </select>
       </div>
-      <div class="col-md-2 mb-3"><label class="form-label">Unidades *</label>
-        <input type="number" name="unidades" class="form-control" min="1" value="1" required></div>
-      <div class="col-md-4 mb-3"><label class="form-label">Tipo de entrada *</label>
-        <select name="idTipoEntrada" class="form-select"><option th:each="t : ${tipos}" th:value="${t.idTipoEntrada}" th:text="${t.nombre}"></option></select></div>
+      <div class="col-12 mb-3"><label class="form-label fw-semibold">Unidades por tipo de entrada *</label>
+        <p class="small text-muted mb-2">Puede combinar tipos en la misma compra. Un combo de niño necesita uno de adulto o de adulto mayor en la misma compra.</p>
+        <div class="row g-2">
+          <div class="col-6 col-md-3" th:each="t, i : ${tipos}">
+            <label class="form-label small" th:text="${t.nombre}"></label>
+            <input type="number" class="form-control" min="0" th:name="'unidades_' + ${t.idTipoEntrada}"
+                   th:value="${i.first ? 1 : 0}">
+          </div>
+        </div>
+      </div>
       <div class="col-md-6 mb-3"><label class="form-label">Plan * <small class="text-muted">(el prestador debe estar afiliado a todas las atracciones del combo)</small></label>
         <select name="idPlan" class="form-select" required><option value="">-- Seleccione --</option>
           <option th:each="p : ${planes}" th:value="${p.id_plan}" th:text="${p.prestador} + ' · ' + ${p.plan}"></option></select></div>

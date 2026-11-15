@@ -27,7 +27,7 @@
       <div class="col-md-3 mb-3"><label class="form-label">Número de documento *</label>
         <input class="form-control" th:field="*{numeroDocumento}" required maxlength="20"></div>
       <div class="col-md-3 mb-3"><label class="form-label">Fecha de nacimiento *</label>
-        <input type="date" class="form-control" th:field="*{fechaNacimiento}" required></div>
+        <input type="date" class="form-control" th:field="*{fechaNacimiento}" required><div class="form-text">Edad según el documento: cédula de ciudadanía 18+, tarjeta de identidad 7 a 17, cédula de extranjería o pasaporte 7+.</div></div>
       <div class="col-md-3 mb-3"><label class="form-label">Ciudad de origen *</label>
         <input class="form-control" th:field="*{ciudadOrigen}" required maxlength="60"></div>
       <div class="col-md-6 mb-3"><label class="form-label">Correo (será su usuario) *</label>

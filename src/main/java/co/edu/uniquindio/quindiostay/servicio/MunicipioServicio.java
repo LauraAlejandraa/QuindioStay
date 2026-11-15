@@ -77,5 +77,8 @@ public class MunicipioServicio {
 
     /** Reglas que miran otras tablas u otras filas (no caben en un CHECK). */
     private void validar(Municipio x) throws SQLException {
+        if (x.getNombre() == null || x.getNombre().isBlank()) {
+            throw new ReglaNegocioException("El nombre del municipio no puede quedar vacío.");
+        }
     }
 }

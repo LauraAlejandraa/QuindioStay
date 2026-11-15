@@ -72,7 +72,7 @@ public class PdfServicio {
     }
 
     public static boolean esDinero(String col) {
-        return col.equals("ingresos") || col.equals("valor_total") || col.equals("precio_especial");
+        return col.startsWith("ingresos") || col.startsWith("valor") || col.equals("precio_especial");
     }
 
     // ======================= Plantillas =======================
@@ -93,11 +93,14 @@ public class PdfServicio {
                     {"Fecha de la reserva", texto(r.get("fecha_creacion"))},
                     {"Fecha del servicio", texto(r.get("fecha_servicio"))},
                     {"Canal", texto(r.get("canal"))},
-                    {"Valor total", pesos(r.get("valor_total"))},
-                    {"Pagado / saldo", pesos(r.get("total_pagado")) + " / " + pesos(r.get("saldo"))}}));
+                    {"Valor total", pesos(r.get("valor_total"))}}));
+            doc.add(datos(filasDinero(r)));
             doc.add(espacio());
             doc.add(new Paragraph("Boletas de la reserva", SUBTITULO));
-            doc.add(tablaBoletas(boletas(idReserva)));
+            doc.add(tablaBoletas(boletas(idReserva), "sí".equals(r.get("pagada")) || Boolean.TRUE.equals(r.get("cancelada"))));
+            if (!"sí".equals(r.get("pagada")) && !Boolean.TRUE.equals(r.get("cancelada"))) {
+                doc.add(new Paragraph(AVISO_PENDIENTE, PEQUENA));
+            }
             doc.add(espacio());
             doc.add(new Paragraph("Condiciones: cancelando con más de 5 días de anticipación se reembolsa el 80 % de lo pagado; "
                     + "con 5 días o menos no hay reembolso. Cada boleta solo puede usarse el día de su función.", PEQUENA));
@@ -112,6 +115,19 @@ public class PdfServicio {
             Map<String, Object> pago = p.get(0);
             int idReserva = ((Number) pago.get("id_reserva")).intValue();
             Map<String, Object> r = reserva(idReserva);
+            // Lo pagado HASTA ESTE PAGO (no el total actual de la reserva): suma de los pagos
+            // exitosos de la reserva hechos antes o junto con este (por fecha y luego por id).
+            // Si este pago no es exitoso no suma, así que queda lo pagado con los anteriores.
+            BigDecimal acumulado = (BigDecimal) dao.consultar(
+                    "SELECT COALESCE(SUM(monto), 0) AS acumulado FROM Pago "
+                    + "WHERE id_reserva = ? AND estado = 'exitoso' "
+                    + "AND (fecha < ? OR (fecha = ? AND id_pago <= ?))",
+                    idReserva, pago.get("fecha"), pago.get("fecha"), idPago).get(0).get("acumulado");
+            BigDecimal valorTotal = (BigDecimal) r.get("valor_total");
+            BigDecimal saldoEnEsePago = valorTotal.subtract(acumulado).max(BigDecimal.ZERO);
+            boolean exitoso = "exitoso".equals(pago.get("estado"));
+            String nota = exitoso ? ""
+                    : " (sin contar este pago)";
             return PdfUtil.crear(false, (doc, w) -> {
                 doc.add(new Paragraph("Comprobante de pago N.º " + idPago, SUBTITULO));
                 doc.add(espacio());
@@ -125,9 +141,14 @@ public class PdfServicio {
                         {"Cliente", r.get("cliente") + " · " + r.get("tipo_documento") + " " + r.get("numero_documento")},
                         {"Prestador", texto(r.get("prestador"))},
                         {"Valor total de la reserva", pesos(r.get("valor_total"))},
-                        {"Total pagado a la fecha", pesos(r.get("total_pagado"))},
-                        {"Saldo pendiente", pesos(r.get("saldo"))}}));
+                        {"Total pagado hasta este pago", pesos(acumulado) + nota},
+                        {"Saldo pendiente tras este pago", pesos(saldoEnEsePago)}}));
                 doc.add(espacio());
+                if (!exitoso) {
+                    doc.add(new Paragraph("Este pago no está aprobado (estado: " + pago.get("estado")
+                            + "), por eso no se suma a lo pagado de la reserva.", NORMAL));
+                    doc.add(espacio());
+                }
                 doc.add(new Paragraph("Pasarela de pago simulada para fines académicos.", PEQUENA));
             });
         } catch (SQLException e) {
@@ -138,8 +159,11 @@ public class PdfServicio {
     /** 3. Factura. Las boletas de combo se cobran por unidad al precio especial. */
     public byte[] factura(int idReserva) {
         Map<String, Object> r = reserva(idReserva);
+        boolean cancelada = Boolean.TRUE.equals(r.get("cancelada"));
+        // En una reserva cancelada todas las boletas quedan anuladas: se facturan igual
+        // (fue lo que se vendió) y el reembolso va aparte, así el total no queda en $0.
         List<Map<String, Object>> bol = boletas(idReserva).stream()
-                .filter(b -> !"anulada".equals(b.get("estado_boleta"))).toList();
+                .filter(b -> cancelada || !"anulada".equals(b.get("estado_boleta"))).toList();
         return PdfUtil.crear(false, (doc, w) -> {
             doc.add(new Paragraph("Factura de venta N.º QS-" + String.format("%06d", idReserva), SUBTITULO));
             doc.add(new Paragraph("Emitida el " + texto(java.time.LocalDate.now()) + " · Prestador: " + r.get("prestador")
@@ -147,7 +171,11 @@ public class PdfServicio {
             doc.add(espacio());
             doc.add(datos(new String[][]{{"Cliente", texto(r.get("cliente"))},
                     {"Documento", r.get("tipo_documento") + " " + r.get("numero_documento")},
-                    {"Correo", texto(r.get("email"))}}));
+                    {"Correo", texto(r.get("email"))},
+                    {"Estado de la reserva", texto(r.get("estado_reserva"))}}));
+            if (cancelada) {
+                doc.add(new Paragraph("Reserva cancelada: sus boletas quedaron anuladas. Abajo se ve lo pagado y lo reembolsado.", NORMAL));
+            }
             doc.add(espacio());
             // Detalle: boletas sueltas una por línea; combos agrupados por unidades
             List<List<String>> filas = new ArrayList<>();
@@ -177,9 +205,8 @@ public class PdfServicio {
             doc.add(tabla(List.of("Descripción", "Cant.", "Valor unitario", "Subtotal"), filas, new float[]{58, 8, 17, 17}, 1, 2, 3));
             doc.add(espacio());
             doc.add(datos(new String[][]{{"Total de la factura", pesos(total)},
-                    {"Valor total de la reserva", pesos(r.get("valor_total"))},
-                    {"Pagado", pesos(r.get("total_pagado"))}, {"Saldo", pesos(r.get("saldo"))},
-                    {"¿Pagada?", texto(r.get("pagada"))}}));
+                    {"Valor total de la reserva", pesos(r.get("valor_total"))}}));
+            doc.add(datos(filasDinero(r)));
             doc.add(espacio());
             doc.add(new Paragraph("Los precios incluyen los descuentos del tipo de entrada. Documento académico: no tiene validez tributaria.", PEQUENA));
         });
@@ -190,6 +217,7 @@ public class PdfServicio {
         Map<String, Object> r = reserva(idReserva);
         List<Map<String, Object>> bol = boletas(idReserva).stream().filter(b -> !"anulada".equals(b.get("estado_boleta"))).toList();
         if (bol.isEmpty()) throw new ReglaNegocioException("La reserva no tiene boletas vigentes.");
+        boolean pagada = "sí".equals(r.get("pagada"));
         return PdfUtil.crear(false, (doc, w) -> {
             doc.add(new Paragraph("Boletas de la reserva N.º " + idReserva + " · " + r.get("cliente"), SUBTITULO));
             for (Map<String, Object> b : bol) {
@@ -205,7 +233,13 @@ public class PdfServicio {
                 cell.addElement(new Paragraph("Zona: " + b.get("zona") + " · Entrada: " + b.get("tipo_entrada")
                         + (b.get("combo") != null ? " · Combo: " + b.get("combo") : ""), NORMAL));
                 cell.addElement(new Paragraph("Código: " + b.get("codigo"), new com.lowagie.text.Font(com.lowagie.text.Font.COURIER, 18, com.lowagie.text.Font.BOLD)));
-                cell.addElement(new Paragraph("Válida una sola vez, solo el día de la función y con la reserva pagada. Estado: " + b.get("estado_boleta"), PEQUENA));
+                if (pagada || !"vendida".equals(b.get("estado_boleta"))) {
+                    cell.addElement(new Paragraph("Válida una sola vez, solo el día de la función y con la reserva pagada. Estado: " + b.get("estado_boleta"), PEQUENA));
+                } else {
+                    // La boleta está 'vendida' en la base, pero sin pago completo todavía no sirve
+                    cell.addElement(new Paragraph(AVISO_PENDIENTE, new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 11, com.lowagie.text.Font.BOLD, new java.awt.Color(176, 0, 32))));
+                    cell.addElement(new Paragraph("Saldo pendiente de la reserva: " + pesos(r.get("saldo")) + ". Válida una sola vez y solo el día de la función.", PEQUENA));
+                }
                 t.addCell(cell);
                 doc.add(t);
             }
@@ -248,6 +282,8 @@ public class PdfServicio {
             Map<String, Object> r = dao.reservaDetalle(id);
             if (r == null) throw new ReglaNegocioException("No existe la reserva " + id + ".");
             r.putAll(dao.estadoPago(id));
+            r.putAll(ResumenPago.calcular(dao, id, (String) r.get("estado_reserva"),
+                    (BigDecimal) r.get("total_pagado"), (BigDecimal) r.get("saldo")));
             return r;
         } catch (SQLException e) {
             throw new ReglaNegocioException(MensajesError.traducir(e));
@@ -262,11 +298,30 @@ public class PdfServicio {
         }
     }
 
-    private PdfPTable tablaBoletas(List<Map<String, Object>> bol) {
+    static final String AVISO_PENDIENTE = "Pendiente de pago: válida solo cuando la reserva esté pagada.";
+
+    /** Filas de dinero de la factura y el comprobante (con la línea de reembolso si se canceló). */
+    private String[][] filasDinero(Map<String, Object> r) {
+        if (Boolean.TRUE.equals(r.get("cancelada"))) {
+            return new String[][]{
+                    {"Pagado por el cliente", pesos(r.get("pagado_cliente"))},
+                    {"Reembolsado", texto(r.get("nota_reembolso"))},
+                    {"Valor retenido (pagado - reembolsado)", pesos(r.get("retenido"))},
+                    {"Saldo", pesos(BigDecimal.ZERO) + " (reserva cancelada: no hay nada por pagar)"}};
+        }
+        return new String[][]{
+                {"Pagado", pesos(r.get("total_pagado"))},
+                {"Saldo", pesos(r.get("saldo"))},
+                {"¿Pagada?", texto(r.get("pagada"))}};
+    }
+
+    private PdfPTable tablaBoletas(List<Map<String, Object>> bol, boolean pagada) {
         List<List<String>> filas = new ArrayList<>();
         for (Map<String, Object> b : bol) {
+            String estado = texto(b.get("estado_boleta"));
+            if (!pagada && "vendida".equals(estado)) estado = "vendida (pendiente de pago)";
             filas.add(List.of(texto(b.get("codigo")), texto(b.get("atraccion")), texto(b.get("fecha_funcion")),
-                    texto(b.get("zona")), texto(b.get("tipo_entrada")), texto(b.get("estado_boleta"))));
+                    texto(b.get("zona")), texto(b.get("tipo_entrada")), estado));
         }
         return tabla(List.of("Código", "Atracción", "Función", "Zona", "Entrada", "Estado"), filas, new float[]{14, 30, 14, 14, 14, 14});
     }

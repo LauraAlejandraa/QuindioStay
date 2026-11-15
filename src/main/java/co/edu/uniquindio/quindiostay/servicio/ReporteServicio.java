@@ -60,25 +60,34 @@ public class ReporteServicio {
                 + "GROUP BY f.id_funcion, a.nombre, f.fecha, z.id_zona, z.nombre, z.aforo "
                 + "ORDER BY f.fecha DESC, f.id_funcion, z.nombre LIMIT 300", List.of(), null, null));
 
+        // valor_vendido = precio de las boletas vendidas (pagadas o no).
+        // ingresos_cobrados = la parte ya pagada: cada boleta cuenta en la proporción que lleva pagada
+        // su reserva (pagos exitosos / valor total). Así un pago o un abono SÍ cambia el reporte.
         reportes.add(new Reporte(6, "Ventas e ingresos por tipo de entrada", "Intermedio",
-                "¿Cuántas boletas se vendieron de cada tipo de entrada y cuántos ingresos dejaron?",
+                "¿Cuántas boletas se vendieron de cada tipo de entrada, cuánto valen y cuánto se ha cobrado?",
                 "SELECT t.nombre AS tipo_entrada, COUNT(b.id_boleta) AS boletas_vendidas, "
-                + "SUM(ROUND(z.precio * (100 - t.porcentaje_descuento) / 100, -2)) AS ingresos "
+                + "SUM(ROUND(z.precio * (100 - t.porcentaje_descuento) / 100, -2)) AS valor_vendido, "
+                + "SUM(ROUND(ROUND(z.precio * (100 - t.porcentaje_descuento) / 100, -2) "
+                + "* LEAST(1, v.total_pagado / NULLIF(v.valor_total, 0)), 0)) AS ingresos_cobrados "
                 + "FROM Tipo_entrada t INNER JOIN Boleta b ON b.id_tipo_entrada = t.id_tipo_entrada "
                 + "INNER JOIN Zona z ON z.id_zona = b.id_zona "
+                + "INNER JOIN vista_estado_pago_reserva v ON v.id_reserva = b.id_reserva "
                 + "WHERE b.estado <> 'anulada' AND b.id_combo IS NULL "
                 + "GROUP BY t.id_tipo_entrada, t.nombre HAVING COUNT(b.id_boleta) > 0 ORDER BY boletas_vendidas DESC",
-                List.of(), "tipo_entrada", "ingresos"));
+                List.of(), "tipo_entrada", "ingresos_cobrados"));
 
         reportes.add(new Reporte(7, "Ingresos por atracción", "Intermedio",
-                "¿Cuánto dinero generan las boletas sueltas de cada atracción?",
+                "¿Cuánto venden las boletas sueltas de cada atracción y cuánto se ha cobrado?",
                 "SELECT a.nombre AS atraccion, COUNT(b.id_boleta) AS boletas, "
-                + "SUM(ROUND(z.precio * (100 - t.porcentaje_descuento) / 100, -2)) AS ingresos "
+                + "SUM(ROUND(z.precio * (100 - t.porcentaje_descuento) / 100, -2)) AS valor_vendido, "
+                + "SUM(ROUND(ROUND(z.precio * (100 - t.porcentaje_descuento) / 100, -2) "
+                + "* LEAST(1, v.total_pagado / NULLIF(v.valor_total, 0)), 0)) AS ingresos_cobrados "
                 + "FROM Atraccion a INNER JOIN Funcion f ON f.id_atraccion = a.id_atraccion "
                 + "INNER JOIN Zona z ON z.id_funcion = f.id_funcion INNER JOIN Boleta b ON b.id_zona = z.id_zona "
                 + "INNER JOIN Tipo_entrada t ON t.id_tipo_entrada = b.id_tipo_entrada "
+                + "INNER JOIN vista_estado_pago_reserva v ON v.id_reserva = b.id_reserva "
                 + "WHERE b.estado <> 'anulada' AND b.id_combo IS NULL "
-                + "GROUP BY a.id_atraccion, a.nombre HAVING COUNT(b.id_boleta) > 0 ORDER BY ingresos DESC",
+                + "GROUP BY a.id_atraccion, a.nombre HAVING COUNT(b.id_boleta) > 0 ORDER BY ingresos_cobrados DESC",
                 List.of(), null, null));
 
         reportes.add(new Reporte(8, "Combos más vendidos", "Avanzado",
@@ -125,6 +134,18 @@ public class ReporteServicio {
         }
         try {
             List<Map<String, Object>> filas = dao.consultar(r.getSql(), params.toArray());
+            if (r.getNumero() == 2 && !filas.isEmpty()) {
+                // La consulta sigue siendo simple (una sola tabla, Funcion); el nombre de la
+                // atracción se agrega aquí para que el reporte no muestre solo el número.
+                Map<Integer, String> nombres = new java.util.HashMap<>();
+                for (Map<String, Object> a : dao.consultar("SELECT id_atraccion, nombre FROM Atraccion")) {
+                    nombres.put(((Number) a.get("id_atraccion")).intValue(), (String) a.get("nombre"));
+                }
+                for (Map<String, Object> fila : filas) {
+                    Object id = fila.get("id_atraccion");
+                    fila.put("atraccion", id == null ? "" : nombres.get(((Number) id).intValue()));
+                }
+            }
             if (r.getNumero() == 10) {   // etiqueta legible para el gráfico
                 for (Map<String, Object> fila : filas) {
                     fila.put("funcion_etiqueta", "#" + fila.get("funcion") + " " + fila.get("atraccion"));

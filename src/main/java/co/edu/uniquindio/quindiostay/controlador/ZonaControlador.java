@@ -63,6 +63,17 @@ public class ZonaControlador {
             if (resultado.hasErrors()) {
                 throw new ReglaNegocioException("Revise los datos: hay un campo con formato incorrecto.");
             }
+            SesionUsuario s = Sesiones.de(session);
+            if (s.isEncargado()) {
+                if (obj.getIdFuncion() == null) {
+                    throw new ReglaNegocioException("Escoja la función de la zona.");
+                }
+                // Si edita una zona existente, la zona actual también debe ser de su prestador
+                // (si no, podría "pasarse" a su función una zona de otro prestador).
+                if (obj.getIdZona() != null) {
+                    revisarPermiso(servicio.buscarPorId(obj.getIdZona()).getIdFuncion(), session);
+                }
+            }
             revisarPermiso(obj.getIdFuncion(), session);
             servicio.guardar(obj);
             redirect.addFlashAttribute("exito", "Guardado correctamente.");

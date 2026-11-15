@@ -51,6 +51,10 @@ public class InterceptorSesion implements HandlerInterceptor {
             return false;
         }
         String ruta = request.getRequestURI().substring(request.getContextPath().length());
+        int puntoYComa = ruta.indexOf(';');   // quita ";jsessionid=..." cuando no hay cookies
+        if (puntoYComa >= 0) {
+            ruta = ruta.substring(0, puntoYComa);
+        }
         String prefijo = "/" + ruta.split("/")[1];
         List<String> roles = PERMISOS.getOrDefault(prefijo, List.of(A));
         if (!roles.contains(sesion.getRol())) {

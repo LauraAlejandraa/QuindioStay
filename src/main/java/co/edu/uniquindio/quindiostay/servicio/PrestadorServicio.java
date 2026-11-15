@@ -77,5 +77,14 @@ public class PrestadorServicio {
 
     /** Reglas que miran otras tablas u otras filas (no caben en un CHECK). */
     private void validar(Prestador x) throws SQLException {
+        if (x.getNombreComercial() == null || x.getNombreComercial().isBlank()) {
+            throw new ReglaNegocioException("El nombre comercial del prestador no puede quedar vacío.");
+        }
+        if (x.getNitDocumento() == null || x.getNitDocumento().isBlank()) {
+            throw new ReglaNegocioException("El NIT/documento del prestador no puede quedar vacío.");
+        }
+        if (x.getDireccion() == null || x.getDireccion().isBlank()) {
+            throw new ReglaNegocioException("La dirección del prestador no puede quedar vacía.");
+        }
     }
 }

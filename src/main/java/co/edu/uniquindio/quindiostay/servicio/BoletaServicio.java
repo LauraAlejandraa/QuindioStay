@@ -8,6 +8,7 @@ import co.edu.uniquindio.quindiostay.modelo.Boleta;
 import co.edu.uniquindio.quindiostay.modelo.Reserva;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -16,7 +17,10 @@ import java.util.Map;
 
 /**
  * Boletas. Se venden desde VentaServicio. Aquí van los cambios de estado:
- *  - vendida -> usada: solo el día de su función y si la reserva está pagada (RF09).
+ *  - vendida -> usada: solo el día de su función (antes del cierre), si la reserva está
+ *    pagada por completo (pagos exitosos = total) y está confirmada (RF09). Al usar la
+ *    última boleta pendiente, la reserva pasa sola a completada. Una reserva
+ *    'confirmada' sin pago completo NO deja entrar: manda lo pagado, no la etiqueta.
  *  - vendida -> anulada: libera el cupo de la zona.
  *  - una boleta usada o anulada NO vuelve a vendida (ni cambia más).
  */
@@ -29,9 +33,11 @@ public class BoletaServicio {
     private final VentaServicio ventaServicio;
     private final ReservaDAO reservaDAO;
     private final NotificacionServicio notificaciones;
+    private final EstadoPagoReserva estadoPago;
 
     public BoletaServicio(BoletaDAO dao, VistaDAO vistaDAO, ConexionBD conexionBD, VentaServicio ventaServicio,
-                          ReservaDAO reservaDAO, NotificacionServicio notificaciones) {
+                          ReservaDAO reservaDAO, NotificacionServicio notificaciones, EstadoPagoReserva estadoPago) {
+        this.estadoPago = estadoPago;
         this.dao = dao;
         this.vistaDAO = vistaDAO;
         this.conexionBD = conexionBD;
@@ -105,15 +111,54 @@ public class BoletaServicio {
             throw new ReglaNegocioException("La boleta está " + b.getEstado() + ": una boleta usada o anulada no vuelve a cambiar de estado.");
         }
         try (Connection con = conexionBD.getConexion()) {
-            dao.cambiarEstado(con, b.getIdBoleta(), nuevo);
-            if ("anulada".equals(nuevo)) {
-                Reserva r = reservaDAO.buscarPorId(con, b.getIdReserva());
-                if (r != null) {
-                    notificaciones.boletaAnulada(con, r, b.getCodigo());
+            con.setAutoCommit(false);
+            try {
+                if ("anulada".equals(nuevo)) {
+                    validarNoDejaNinosSolos(con, b);
                 }
+                dao.cambiarEstado(con, b.getIdBoleta(), nuevo);
+                if ("anulada".equals(nuevo)) {
+                    if (b.getIdCombo() == null) {
+                        List<Map<String, Object>> filas = vistaDAO.consultar(con,
+                                "SELECT valor_boleta FROM vista_boleta_detalle WHERE id_boleta = ?", b.getIdBoleta());
+                        if (!filas.isEmpty() && filas.get(0).get("valor_boleta") != null) {
+                            BigDecimal valor = (BigDecimal) filas.get(0).get("valor_boleta");
+                            reservaDAO.sumarValor(con, b.getIdReserva(), valor.negate());
+                        }
+                    }
+                    Reserva r = reservaDAO.buscarPorId(con, b.getIdReserva());
+                    if (r != null) {
+                        notificaciones.boletaAnulada(con, r, b.getCodigo());
+                    }
+                    // Con el valor rebajado, lo ya pagado puede cubrir el total: se confirma sola.
+                    estadoPago.sincronizar(con, b.getIdReserva());
+                }
+                con.commit();
+            } catch (SQLException | RuntimeException e) {
+                con.rollback();
+                throw e;
             }
         } catch (SQLException e) {
             throw new ReglaNegocioException(MensajesError.traducir(e));
+        }
+    }
+
+    /**
+     * Regla del niño con adulto: no se anula la última boleta de adulto o de
+     * adulto mayor (los dos cuentan como acompañante) de una reserva que todavía
+     * tiene boletas de niño vigentes (quedarían niños solos).
+     */
+    private void validarNoDejaNinosSolos(Connection con, Boleta b) throws SQLException {
+        List<Map<String, Object>> filas = vistaDAO.consultar(con,
+                "SELECT nombre FROM Tipo_entrada WHERE id_tipo_entrada = ?", b.getIdTipoEntrada());
+        if (filas.isEmpty() || !VentaServicio.esAcompanante((String) filas.get(0).get("nombre"))) {
+            return;
+        }
+        int adultos = dao.contarAcompanantes(con, b.getIdReserva());
+        int ninos = dao.contarPorTipo(con, b.getIdReserva(), "niño");
+        if (adultos <= 1 && ninos > 0) {
+            throw new ReglaNegocioException("No se puede anular la única boleta de adulto o adulto mayor de la reserva #" + b.getIdReserva()
+                    + ": quedarían " + ninos + " boleta(s) de niño sin un adulto. Anule primero las de niño o cancele la reserva.");
         }
     }
 
@@ -134,18 +179,42 @@ public class BoletaServicio {
             if ("anulada".equals(estado)) {
                 throw new ReglaNegocioException("La boleta " + b.get("codigo") + " está ANULADA (su reserva se canceló).");
             }
+            if ("cancelada".equals(b.get("estado_funcion"))) {
+                throw new ReglaNegocioException("La función de esta boleta fue CANCELADA: no se puede ingresar.");
+            }
             LocalDate fechaFuncion = ((java.sql.Date) b.get("fecha_funcion")).toLocalDate();
-            if (!fechaFuncion.equals(LocalDate.now())) {
+            if (!fechaFuncion.equals(Reloj.hoy())) {
                 throw new ReglaNegocioException("La boleta es para el " + fechaFuncion
-                        + ". Solo se puede usar el día de su función (hoy es " + LocalDate.now() + ").");
+                        + ". Solo se puede usar el día de su función (hoy es " + Reloj.hoy() + ").");
+            }
+            Object cierre = b.get("hora_cierre");
+            if (cierre instanceof java.sql.Time t && Reloj.yaTermino(fechaFuncion, t.toLocalTime())) {
+                throw new ReglaNegocioException("La función de esta boleta ya terminó (cerró a las " + t.toLocalTime()
+                        + "): no se puede ingresar.");
             }
             Map<String, Object> pago = vistaDAO.estadoPago((Integer) b.get("id_reserva"));
             if (!"sí".equals(pago.get("pagada"))) {
                 throw new ReglaNegocioException("La reserva #" + b.get("id_reserva") + " no está pagada (saldo $"
                         + String.format("%,.0f", pago.get("saldo")).replace(',', '.') + "). No puede ingresar.");
             }
+            // Doble seguro: además de pagada, la reserva debe estar confirmada. Una completada ya no
+            // tiene boletas por usar (se usaron o sus funciones terminaron); pendiente o cancelada, nunca.
+            String estadoReserva = (String) pago.get("estado_reserva");
+            if (!"confirmada".equals(estadoReserva)) {
+                throw new ReglaNegocioException("La reserva #" + b.get("id_reserva") + " está " + estadoReserva
+                        + ": solo se validan boletas de reservas confirmadas y pagadas. No puede ingresar.");
+            }
             try (Connection con = conexionBD.getConexion()) {
-                dao.cambiarEstado(con, (Integer) b.get("id_boleta"), "usada");
+                con.setAutoCommit(false);
+                try {
+                    dao.cambiarEstado(con, (Integer) b.get("id_boleta"), "usada");
+                    // Si era la última boleta por usar, el servicio ya se prestó: la reserva queda completada.
+                    b.put("reservaCompletada", estadoPago.completarSiTermino(con, (Integer) b.get("id_reserva")));
+                    con.commit();
+                } catch (SQLException | RuntimeException e) {
+                    con.rollback();
+                    throw e;
+                }
             }
             b.put("estado_boleta", "usada");
             return b;

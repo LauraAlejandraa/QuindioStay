@@ -28,8 +28,11 @@ public class TaquillaControlador {
     @PostMapping
     public String validar(@RequestParam String codigo, Model model) {
         try {
-            model.addAttribute("boleta", boletaServicio.validarEnTaquilla(codigo));
-            model.addAttribute("exito", "Boleta válida: puede ingresar. Quedó marcada como usada.");
+            var boleta = boletaServicio.validarEnTaquilla(codigo);
+            model.addAttribute("boleta", boleta);
+            model.addAttribute("exito", "Boleta válida: puede ingresar. Quedó marcada como usada."
+                    + (Boolean.TRUE.equals(boleta.get("reservaCompletada"))
+                       ? " Era la última boleta de la reserva #" + boleta.get("id_reserva") + ": la reserva quedó completada." : ""));
         } catch (ReglaNegocioException e) {
             model.addAttribute("error", e.getMessage());
         }

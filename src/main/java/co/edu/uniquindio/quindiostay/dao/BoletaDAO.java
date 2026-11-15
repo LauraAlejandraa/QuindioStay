@@ -173,6 +173,11 @@ public class BoletaDAO {
         }
     }
 
+    /** Boletas vigentes de adulto o de adulto mayor (pueden acompañar a un niño). */
+    public int contarAcompanantes(Connection con, int idReserva) throws SQLException {
+        return contarPorTipo(con, idReserva, "adulto") + contarPorTipo(con, idReserva, "adulto mayor");
+    }
+
     public int contarPorEstado(Connection con, int idReserva, String estado) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM Boleta WHERE id_reserva = ? AND estado = ?")) {

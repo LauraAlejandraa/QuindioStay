@@ -104,6 +104,73 @@ public class AtraccionDAO {
         }
     }
 
+    /** DELETE dentro de una transacción (la usa el servicio después de quitar las afiliaciones). */
+    public void eliminar(Connection con, int id) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement("DELETE FROM Atraccion WHERE id_atraccion = ?")) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Cuántas funciones tiene la atracción (de cualquier estado). */
+    public int contarFunciones(int id) throws SQLException {
+        return contar("SELECT COUNT(*) FROM Funcion WHERE id_atraccion = ?", id);
+    }
+
+    /** Cuántas boletas (de cualquier estado) se emitieron para funciones de la atracción. */
+    public int contarBoletas(int id) throws SQLException {
+        return contar("SELECT COUNT(*) FROM Boleta b INNER JOIN Zona z ON z.id_zona = b.id_zona "
+                + "INNER JOIN Funcion f ON f.id_funcion = z.id_funcion WHERE f.id_atraccion = ?", id);
+    }
+
+    /** Nombres de los combos de los que forma parte la atracción. */
+    public List<String> combosDe(int id) throws SQLException {
+        return nombres("SELECT c.nombre FROM Combo_atraccion ca INNER JOIN Combo c ON c.id_combo = ca.id_combo "
+                + "WHERE ca.id_atraccion = ? ORDER BY c.nombre", id);
+    }
+
+    /** id -> nombre de los prestadores afiliados a la atracción. */
+    public Map<Integer, String> prestadoresAfiliados(int id) throws SQLException {
+        String sql = "SELECT p.id_prestador, p.nombre_comercial FROM Prestador_atraccion pa "
+                + "INNER JOIN Prestador p ON p.id_prestador = pa.id_prestador WHERE pa.id_atraccion = ? ORDER BY p.nombre_comercial";
+        Map<Integer, String> mapa = new LinkedHashMap<>();
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    mapa.put(rs.getInt(1), rs.getString(2));
+                }
+            }
+        }
+        return mapa;
+    }
+
+    private int contar(String sql, int id) throws SQLException {
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    private List<String> nombres(String sql, int id) throws SQLException {
+        List<String> lista = new ArrayList<>();
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(rs.getString(1));
+                }
+            }
+        }
+        return lista;
+    }
+
     /** Pares id -> texto para las listas desplegables y para mostrar nombres en las tablas. */
     public Map<Integer, String> listarOpciones() throws SQLException {
         String sql = "SELECT id_atraccion, nombre FROM Atraccion ORDER BY nombre";
@@ -136,12 +203,30 @@ public class AtraccionDAO {
         return lista;
     }
 
-    /** Buscar por nombre (Tabla 39): LIKE con el texto como parámetro, nunca concatenado. */
+    /**
+     * Buscar por nombre (Tabla 39): el texto se parte en palabras y CADA palabra debe
+     * coincidir con el inicio de alguna palabra del nombre ("par caf" encuentra
+     * "Parque del Café", pero "afe" no). Los valores van como parámetros, nunca concatenados.
+     */
     public List<Atraccion> buscarPorNombre(String texto) throws SQLException {
         List<Atraccion> lista = new ArrayList<>();
+        String[] palabras = texto == null ? new String[0] : texto.trim().split("\\s+");
+        StringBuilder sql = new StringBuilder("SELECT " + COLUMNAS + " FROM Atraccion WHERE 1=1");
+        List<String> valores = new ArrayList<>();
+        for (String p : palabras) {
+            if (p.isEmpty()) continue;
+            // Se escapan los comodines para que "%" o "_" escritos se busquen tal cual.
+            String limpia = p.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+            sql.append(" AND (nombre LIKE ? OR nombre LIKE ?)");
+            valores.add(limpia + "%");        // al inicio del nombre
+            valores.add("% " + limpia + "%"); // al inicio de otra palabra del nombre
+        }
+        sql.append(" ORDER BY nombre");
         try (Connection con = conexionBD.getConexion();
-             PreparedStatement ps = con.prepareStatement("SELECT " + COLUMNAS + " FROM Atraccion WHERE nombre LIKE ? ORDER BY nombre")) {
-            ps.setString(1, "%" + texto + "%");
+             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+            for (int i = 0; i < valores.size(); i++) {
+                ps.setString(i + 1, valores.get(i));
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     lista.add(mapear(rs));

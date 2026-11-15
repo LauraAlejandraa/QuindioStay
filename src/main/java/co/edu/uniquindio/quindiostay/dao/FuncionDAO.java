@@ -162,6 +162,40 @@ public class FuncionDAO {
         }
     }
 
+    /**
+     * Boletas vendidas (no anuladas) de la función que están en reservas vivas
+     * (pendiente o confirmada): mientras existan, la función no se puede cancelar.
+     */
+    public int contarBoletasEnReservasVivas(int idFuncion) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM Boleta b INNER JOIN Zona z ON z.id_zona = b.id_zona "
+                + "INNER JOIN Reserva r ON r.id_reserva = b.id_reserva "
+                + "WHERE z.id_funcion = ? AND b.estado <> 'anulada' AND r.estado IN ('pendiente', 'confirmada')";
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, idFuncion);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    /**
+     * Paso automático a 'realizada': toda función 'programada' cuyo cierre ya pasó
+     * (fecha anterior a hoy, o de hoy con hora de cierre ya cumplida). Devuelve cuántas cambió.
+     */
+    public int marcarRealizadas(LocalDate hoy, LocalTime ahora) throws SQLException {
+        String sql = "UPDATE Funcion SET estado = 'realizada' WHERE estado = 'programada' "
+                + "AND (fecha < ? OR (fecha = ? AND hora_cierre <= ?))";
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setObject(1, hoy);
+            ps.setObject(2, hoy);
+            ps.setObject(3, ahora);
+            return ps.executeUpdate();
+        }
+    }
+
     /** Convierte la fila actual del ResultSet en un objeto Funcion. */
     Funcion mapear(ResultSet rs) throws SQLException {
         Funcion x = new Funcion();

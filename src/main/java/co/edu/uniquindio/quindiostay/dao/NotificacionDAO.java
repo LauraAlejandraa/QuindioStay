@@ -104,6 +104,22 @@ public class NotificacionDAO {
         }
     }
 
+    /**
+     * Envío simulado automático: las notificaciones 'pendiente' cuya fecha programada
+     * ya llegó pasan a 'enviada' con la fecha real de envío. No toca las 'leída',
+     * 'enviada' ni 'fallida'. Devuelve cuántas se enviaron.
+     */
+    public int enviarVencidas(LocalDateTime ahora) throws SQLException {
+        String sql = "UPDATE Notificacion SET estado = 'enviada', fecha_real_envio = ? "
+                + "WHERE estado = 'pendiente' AND fecha_programada <= ?";
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setObject(1, ahora);
+            ps.setObject(2, ahora);
+            return ps.executeUpdate();
+        }
+    }
+
     /** Borra la fila. Si otra tabla depende de ella, MySQL responde con el error 1451 (RESTRICT). */
     public void eliminar(int id) throws SQLException {
         String sql = "DELETE FROM Notificacion WHERE id_notificacion = ?";

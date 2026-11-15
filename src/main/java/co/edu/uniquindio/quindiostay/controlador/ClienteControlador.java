@@ -67,7 +67,7 @@ public class ClienteControlador {
     public String eliminar(@PathVariable int id, RedirectAttributes redirect) {
         try {
             servicio.eliminar(id);
-            redirect.addFlashAttribute("exito", "Registro eliminado.");
+            redirect.addFlashAttribute("exito", "Cliente eliminado (no tenía reservas ni notificaciones). Su cuenta y su perfil se eliminaron con él.");
         } catch (ReglaNegocioException e) {
             redirect.addFlashAttribute("error", e.getMessage());
         }

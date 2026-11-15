@@ -6,6 +6,7 @@ import co.edu.uniquindio.quindiostay.modelo.SesionUsuario;
 import co.edu.uniquindio.quindiostay.servicio.AutenticacionServicio;
 import co.edu.uniquindio.quindiostay.servicio.ClienteServicio;
 import co.edu.uniquindio.quindiostay.servicio.ReglaNegocioException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -32,9 +33,12 @@ public class LoginControlador {
 
     @PostMapping("/login")
     public String ingresar(@RequestParam String usuario, @RequestParam String contrasena,
-                           HttpSession session, Model model) {
+                           HttpServletRequest request, HttpSession session, Model model) {
         try {
             SesionUsuario sesion = autenticacion.iniciarSesion(usuario, contrasena);
+            // Cambia el id de sesión al iniciar sesión (evita session fixation): se conservan
+            // los atributos, pero el id que tenía el visitante antes de autenticarse ya no sirve.
+            request.changeSessionId();
             session.setAttribute("sesion", sesion);
             return "redirect:/inicio";
         } catch (ReglaNegocioException e) {

@@ -22,8 +22,17 @@
       <div class="col-md-6 mb-3"><label class="form-label">Canal</label>
         <select class="form-select" th:field="*{canal}"><option th:each="v : ${ {'web','aplicación móvil','teléfono','mostrador','agencia intermediaria'} }" th:value="${v}" th:text="${v}"></option></select></div>
       <div class="col-md-6 mb-3"><label class="form-label">Estado</label>
-        <select class="form-select" th:field="*{estado}"><option th:each="v : ${ {'pendiente','confirmada','completada','cancelada'} }" th:value="${v}" th:text="${v}"></option></select>
-        <div class="form-text">pendiente → confirmada → completada. Cancelar anula las boletas y aplica el reembolso.</div></div>
+        <select class="form-select" th:field="*{estado}"><option th:each="v : ${opcEstado}" th:value="${v}" th:text="${v}"></option></select>
+        <div class="form-text">Solo aparecen los cambios permitidos desde el estado actual.</div>
+        <div class="form-text text-warning-emphasis" th:if="${motivoNoConfirmar != null}" th:text="${motivoNoConfirmar}"></div>
+        <div class="form-text text-warning-emphasis" th:if="${motivoNoCompletar != null}" th:text="${motivoNoCompletar}"></div>
+        <ul class="form-text small ps-3 mb-0">
+          <li><strong>pendiente</strong>: creada, falta pagarla por completo. Una confirmada vuelve a pendiente si deja de estar pagada.</li>
+          <li><strong>confirmada</strong>: pagada por completo (los pagos exitosos cubren el total); el servicio todavía no se ha prestado.
+            Normalmente se confirma sola al registrar el pago; a mano solo se puede si ya está pagada.</li>
+          <li><strong>completada</strong>: el servicio ya se prestó. Pasa sola cuando la reserva está pagada y todas sus boletas se usaron en taquilla (o ya terminaron sus funciones). Es final: después no se cancela.</li>
+          <li><strong>cancelada</strong>: anula las boletas, libera el cupo y aplica el reembolso (80 % de lo pagado si faltan más de 5 días). Es final.</li>
+        </ul></div>
     </div>
     <div><button class="btn btn-success">Guardar</button>
       <a class="btn btn-outline-secondary" th:href="@{/reservas/{id}(id=${obj.idReserva})}">Volver</a></div>

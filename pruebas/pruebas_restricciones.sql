@@ -114,3 +114,31 @@ VALUES ('recordatorio de reserva', 'correo', 'Tu visita es en 3 días',
 
 -- PRUEBA 6 · RESTRICT. La reserva 1 ya tiene un pago (el de la prueba 3). Si dejáramos borrarla, se perdería el registro contable.
 DELETE FROM Reserva WHERE id_reserva = 1;
+
+-- BLOQUE 6 · Reglas agregadas en la Parte B (15/11/2026)
+-- Correr sobre una base con los datos de prueba (00, 01, 02).
+-- PRUEBA 7 · Debe FALLAR (1062 uq_cliente_documento): el número de documento
+-- no se repite aunque el tipo sea otro (de TI a CC se conserva el número).
+INSERT INTO Cliente (primer_nombre, primer_apellido, tipo_documento, numero_documento,
+                     email, telefono, fecha_nacimiento, ciudad_origen)
+SELECT 'Copia', 'Prueba', 'tarjeta de identidad', numero_documento,
+       'copia.prueba@gmail.com', '3100000000', '2014-03-03', 'Armenia'
+FROM Cliente WHERE tipo_documento = 'cédula de ciudadanía' LIMIT 1;
+
+-- PRUEBA 8 · Debe FALLAR (3819 ck_cliente_edad_doc): con pasaporte o cédula
+-- de extranjería también hay que tener al menos 7 años.
+INSERT INTO Cliente (primer_nombre, primer_apellido, tipo_documento, numero_documento,
+                     email, telefono, fecha_nacimiento, ciudad_origen)
+VALUES ('Tom', 'Smith', 'pasaporte', 'AB1234567', 'tom.smith@gmail.com',
+        '3100000001', CURDATE() - INTERVAL 3 YEAR, 'Armenia');
+
+-- PRUEBA 9 · Debe FALLAR (3819 ck_funcion_duracion): una función dura al menos 30 minutos.
+INSERT INTO Funcion (fecha, hora_apertura, hora_cierre, id_atraccion)
+VALUES (CURDATE() + INTERVAL 7 DAY, '10:00', '10:20', 1);
+
+-- PRUEBA 10 · Debe FUNCIONAR: la misma función con 30 minutos exactos
+-- (se deshace con ROLLBACK para no dejar datos de más).
+START TRANSACTION;
+INSERT INTO Funcion (fecha, hora_apertura, hora_cierre, id_atraccion)
+VALUES (CURDATE() + INTERVAL 7 DAY, '10:00', '10:30', 1);
+ROLLBACK;

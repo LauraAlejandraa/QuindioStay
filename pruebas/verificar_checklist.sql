@@ -57,6 +57,19 @@ FROM Usuario_sistema WHERE contrasena_cifrada NOT LIKE '$2a$%';
 --     el error de su regla (3819 CHECK, 1062 repetido, 1452 padre no
 --     existe, 1451 RESTRICT).
 
+-- 1.8 Reglas agregadas en la Parte B (15/11/2026).
+--     a) El UNIQUE de documento es solo sobre el número (sin el tipo).
+--        Debe dar 1 fila: uq_cliente_documento | numero_documento.
+SELECT index_name, GROUP_CONCAT(column_name ORDER BY seq_in_index) AS columnas
+FROM information_schema.statistics
+WHERE table_schema = 'quindiostay' AND LOWER(table_name) = 'cliente'
+  AND index_name = 'uq_cliente_documento'
+GROUP BY index_name;
+--     b) Existe el CHECK de duración de la función (30 minutos). Debe dar 1.
+SELECT COUNT(*) AS ck_funcion_duracion
+FROM information_schema.check_constraints
+WHERE constraint_schema = 'quindiostay' AND constraint_name = 'ck_funcion_duracion';
+
 -- =====================================================================
 -- 2. DATOS DE EJEMPLO (sección 4)
 -- =====================================================================
@@ -224,19 +237,23 @@ INNER JOIN Boleta b ON b.id_zona = z.id_zona AND b.estado <> 'anulada'
 GROUP BY z.id_zona, z.aforo
 HAVING COUNT(b.id_boleta) > z.aforo;
 
--- 3.11 Una entrada de niño no se vende sin una de adulto en la misma
---      compra (2.9).
-SELECT id_reserva
-FROM Boleta
-GROUP BY id_reserva
-HAVING SUM(id_tipo_entrada = 2) > 0 AND SUM(id_tipo_entrada = 1) = 0;
-
--- 3.12 Las boletas usadas son de reservas completadas (una boleta solo se
---      usa cuando la visita ya pasó).
-SELECT COUNT(*) AS usada_sin_completar
+-- 3.11 Una entrada de niño no se vende sin una de adulto o adulto mayor
+--      en la misma compra (2.9). Solo cuentan las boletas no anuladas.
+--      Debe dar 0 filas.
+SELECT b.id_reserva
 FROM Boleta b
-INNER JOIN Reserva r ON b.id_reserva = r.id_reserva
-WHERE b.estado = 'usada' AND r.estado <> 'completada';
+INNER JOIN Tipo_entrada t ON b.id_tipo_entrada = t.id_tipo_entrada
+WHERE b.estado <> 'anulada'
+GROUP BY b.id_reserva
+HAVING SUM(t.nombre = 'niño') > 0 AND SUM(t.nombre IN ('adulto', 'adulto mayor')) = 0;
+
+-- 3.12 Una boleta usada es de una reserva confirmada o completada y
+--      pagada por completo (la taquilla no deja entrar si falta pagar).
+SELECT COUNT(*) AS usada_sin_pagar
+FROM Boleta b
+INNER JOIN vista_estado_pago_reserva v ON b.id_reserva = v.id_reserva
+WHERE b.estado = 'usada'
+  AND (v.estado_reserva NOT IN ('confirmada', 'completada') OR v.pagada = 'no');
 
 -- 3.13 Decisión de diseño (2.9): combos con entradas usadas en días
 --      diferentes. Debe dar MÁS de 0 (aquí sí queremos que existan: 25).
@@ -248,6 +265,87 @@ FROM (SELECT b.id_reserva
       WHERE b.id_combo IS NOT NULL
       GROUP BY b.id_reserva
       HAVING COUNT(DISTINCT f.fecha) > 1) t;
+
+-- 3.14 El número de documento no se repite, aunque el tipo sea otro.
+SELECT COUNT(*) AS documento_repetido
+FROM (SELECT numero_documento FROM Cliente
+      GROUP BY numero_documento HAVING COUNT(*) > 1) t;
+
+-- 3.15 Edad según el documento (el día del registro): cédula de
+--      ciudadanía 18+, tarjeta de identidad 7 a 17, extranjería y pasaporte 7+.
+SELECT COUNT(*) AS edad_no_corresponde
+FROM Cliente
+WHERE NOT ((tipo_documento = 'cédula de ciudadanía'
+            AND TIMESTAMPDIFF(YEAR, fecha_nacimiento, fecha_registro) >= 18)
+        OR (tipo_documento = 'tarjeta de identidad'
+            AND TIMESTAMPDIFF(YEAR, fecha_nacimiento, fecha_registro) BETWEEN 7 AND 17)
+        OR (tipo_documento IN ('cédula de extranjería', 'pasaporte')
+            AND TIMESTAMPDIFF(YEAR, fecha_nacimiento, fecha_registro) >= 7));
+
+-- 3.16 Toda función dura al menos 30 minutos.
+SELECT COUNT(*) AS funcion_corta
+FROM Funcion
+WHERE hora_cierre < ADDTIME(hora_apertura, '00:30:00');
+
+-- 3.17 En una misma función el precio va General < Preferencial < VIP.
+SELECT COUNT(*) AS precio_zona_desordenado
+FROM Zona a
+INNER JOIN Zona b ON a.id_funcion = b.id_funcion
+WHERE FIELD(LOWER(a.nombre), 'general', 'preferencial', 'vip') > 0
+  AND FIELD(LOWER(b.nombre), 'general', 'preferencial', 'vip')
+      > FIELD(LOWER(a.nombre), 'general', 'preferencial', 'vip')
+  AND b.precio <= a.precio;
+
+-- 3.18 Lo pagado (pagos exitosos) nunca supera el valor de la reserva.
+SELECT COUNT(*) AS pagado_de_mas
+FROM vista_estado_pago_reserva
+WHERE total_pagado > valor_total;
+
+-- 3.19 Una reserva completada ya no tiene boletas por usar en funciones
+--      que todavía no terminan (completada = el servicio ya se prestó).
+SELECT COUNT(DISTINCT r.id_reserva) AS completada_con_boletas_futuras
+FROM Reserva r
+INNER JOIN Boleta b  ON b.id_reserva = r.id_reserva AND b.estado = 'vendida'
+INNER JOIN Zona z    ON b.id_zona = z.id_zona
+INNER JOIN Funcion f ON z.id_funcion = f.id_funcion
+WHERE r.estado = 'completada'
+  AND TIMESTAMP(f.fecha, f.hora_cierre) > NOW();
+
+-- 3.20 Una función cancelada no tiene boletas vigentes.
+SELECT COUNT(*) AS funcion_cancelada_con_boletas
+FROM Boleta b
+INNER JOIN Zona z    ON b.id_zona = z.id_zona
+INNER JOIN Funcion f ON z.id_funcion = f.id_funcion
+WHERE f.estado = 'cancelada' AND b.estado = 'vendida';
+
+-- 3.21 Un combo activo tiene al menos dos atracciones.
+SELECT COUNT(*) AS combo_activo_incompleto
+FROM Combo c
+WHERE c.estado = 'activo'
+  AND (SELECT COUNT(*) FROM Combo_atraccion ca WHERE ca.id_combo = c.id_combo) < 2;
+
+-- 3.22 Cada boleta es de una atracción afiliada al prestador del plan
+--      de su reserva.
+SELECT COUNT(*) AS boleta_de_atraccion_no_afiliada
+FROM Boleta b
+INNER JOIN Reserva r ON b.id_reserva = r.id_reserva
+INNER JOIN Plan pl   ON r.id_plan = pl.id_plan
+INNER JOIN Zona z    ON b.id_zona = z.id_zona
+INNER JOIN Funcion f ON z.id_funcion = f.id_funcion
+WHERE NOT EXISTS (SELECT 1 FROM Prestador_atraccion pa
+                  WHERE pa.id_prestador = pl.id_prestador
+                    AND pa.id_atraccion = f.id_atraccion);
+
+-- 3.23 Solo el encargado tiene prestador; administrador y operador no.
+--      Y queda al menos un administrador activo (debe dar 1 o más).
+SELECT COUNT(*) AS interno_con_prestador_de_mas
+FROM Usuario_sistema u
+INNER JOIN Rol r ON u.id_rol = r.id_rol
+WHERE r.nombre <> 'encargado de prestador' AND u.id_prestador IS NOT NULL;
+SELECT COUNT(*) AS administradores_activos
+FROM Usuario_sistema u
+INNER JOIN Rol r ON u.id_rol = r.id_rol
+WHERE r.nombre = 'administrador de la plataforma' AND u.estado = 'activo';
 
 -- =====================================================================
 -- 4. CONSULTAS DE LOS REPORTES (sección 5.2)

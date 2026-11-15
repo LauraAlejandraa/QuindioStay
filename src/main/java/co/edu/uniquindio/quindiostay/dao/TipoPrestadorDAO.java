@@ -114,6 +114,49 @@ public class TipoPrestadorDAO {
         return opciones;
     }
 
+    /** Prestadores por tipo: id -> cuántas filas de Prestador lo usan (para la columna de la lista). */
+    public Map<Integer, Integer> contarPrestadoresPorTipo() throws SQLException {
+        String sql = "SELECT id_tipo_prestador, COUNT(*) FROM Prestador GROUP BY id_tipo_prestador";
+        Map<Integer, Integer> usos = new LinkedHashMap<>();
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                usos.put(rs.getInt(1), rs.getInt(2));
+            }
+        }
+        return usos;
+    }
+
+    /** Cuántas filas de Prestador usan este registro (si es más de 0, no se puede borrar). */
+    public int contarPrestadores(int id) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM Prestador WHERE id_tipo_prestador = ?";
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    /** Algunos nombres de ejemplo de lo que usa este registro (para explicar por qué no se borra). */
+    public List<String> nombresPrestadores(int id, int maximo) throws SQLException {
+        String sql = "SELECT nombre_comercial FROM Prestador WHERE id_tipo_prestador = ? ORDER BY nombre_comercial LIMIT ?";
+        List<String> nombres = new ArrayList<>();
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ps.setInt(2, maximo);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    nombres.add(rs.getString(1));
+                }
+            }
+        }
+        return nombres;
+    }
+
     /** Convierte la fila actual del ResultSet en un objeto TipoPrestador. */
     TipoPrestador mapear(ResultSet rs) throws SQLException {
         TipoPrestador x = new TipoPrestador();

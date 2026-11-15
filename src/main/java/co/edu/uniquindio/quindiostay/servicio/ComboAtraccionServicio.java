@@ -51,6 +51,18 @@ public class ComboAtraccionServicio {
     public void guardar(ComboAtraccion x) {
         try {
             validar(x);
+            if (x.getIdComboAtraccion() != null) {
+                // Si se pasa la atracción a OTRO combo, el combo de origen también pierde una atracción:
+                // se le aplican las mismas reglas que al eliminarla.
+                ComboAtraccion antes = dao.buscarPorId(x.getIdComboAtraccion());
+                if (antes != null && !antes.getIdCombo().equals(x.getIdCombo())) {
+                    validar(antes);
+                    if ("activo".equals(comboDAO.buscarPorId(antes.getIdCombo()).getEstado())
+                            && comboDAO.atraccionesDelCombo(antes.getIdCombo()).size() <= 2) {
+                        throw new ReglaNegocioException("El combo de origen está activo y quedaría con menos de dos atracciones. Inactívelo primero.");
+                    }
+                }
+            }
             if (x.getIdComboAtraccion() == null) {
                 dao.crear(x);
             } else {

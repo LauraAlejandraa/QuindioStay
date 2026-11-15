@@ -11,27 +11,32 @@
     <div class="row">
       <div class="col-md-6 mb-3">
         <label class="form-label" for="fecha">Fecha <span class="text-danger">*</span></label>
-        <input type="date" class="form-control" th:field="*{fecha}" required>
+        <input type="date" class="form-control" th:field="*{fecha}" readonly>
+        <div class="form-text" th:if="${obj.idPago == null}">Se registra siempre con la fecha de hoy.</div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="monto">Monto <span class="text-danger">*</span></label>
-        <input type="number" class="form-control" th:field="*{monto}" step="0.01" min="1" required>
+        <input type="number" class="form-control" th:field="*{monto}" step="0.01" min="1" required th:readonly="${obj.idPago != null}">
+        <div class="form-text" th:if="${obj.idPago == null}">No puede superar el saldo pendiente de la reserva.</div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="metodo">Método <span class="text-danger">*</span></label>
-        <select class="form-select" th:field="*{metodo}" required><option th:each="v : ${ {'tarjeta de crédito', 'tarjeta débito', 'PSE', 'transferencia', 'efectivo'} }" th:value="${v}" th:text="${v}"></option></select>
+        <input type="hidden" th:if="${obj.idPago != null}" name="metodo" th:value="*{metodo}">
+        <select class="form-select" th:field="*{metodo}" required th:disabled="${obj.idPago != null}"><option th:each="v : ${ {'tarjeta de crédito', 'tarjeta débito', 'PSE', 'transferencia', 'efectivo'} }" th:value="${v}" th:text="${v}"></option></select>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="estado">Estado <span class="text-danger">*</span></label>
-        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${ {'exitoso', 'fallido', 'pendiente', 'reembolsado'} }" th:value="${v}" th:text="${v}"></option></select>
+        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${obj.idPago == null ? {'exitoso', 'pendiente', 'fallido'} : {'exitoso', 'fallido', 'pendiente', 'reembolsado'}}" th:value="${v}" th:text="${v}"></option></select>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="referenciaTransaccion">Referencia de transacción</label>
-        <input type="text" class="form-control" th:field="*{referenciaTransaccion}" maxlength="50">
+        <input type="text" class="form-control" th:field="*{referenciaTransaccion}" maxlength="50" th:readonly="${obj.idPago != null}">
+        <div class="form-text" th:if="${obj.idPago == null}">Obligatoria para tarjeta de crédito, tarjeta débito y PSE: si la deja vacía, la pasarela simulada genera una (ej. PSE-20261114-483920). Opcional en efectivo.</div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="idReserva">Reserva <span class="text-danger">*</span></label>
-        <select class="form-select" th:field="*{idReserva}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcReserva}" th:value="${o.key}" th:text="${o.value}"></option></select>
+        <input type="hidden" th:if="${obj.idPago != null}" name="idReserva" th:value="*{idReserva}">
+        <select class="form-select" th:field="*{idReserva}" required th:disabled="${obj.idPago != null}"><option value="">-- Seleccione --</option><option th:each="o : ${opcReserva}" th:value="${o.key}" th:text="${o.value}"></option></select>
       </div>
     </div>
     <div>

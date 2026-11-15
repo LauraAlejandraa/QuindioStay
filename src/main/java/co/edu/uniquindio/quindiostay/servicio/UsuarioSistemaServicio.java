@@ -49,8 +49,24 @@ public class UsuarioSistemaServicio {
 
     /** Crea si no tiene id, o actualiza si ya lo tiene. */
     public void guardar(UsuarioSistema x) {
+        guardar(x, null);
+    }
+
+    /**
+     * idUsuarioSesion = quien está guardando. Nadie puede bloquearse ni quitarse el rol de
+     * administrador a sí mismo, y siempre debe quedar al menos un administrador activo
+     * (si no, nadie podría volver a entrar a la administración).
+     */
+    public void guardar(UsuarioSistema x, Integer idUsuarioSesion) {
         try {
             validar(x);
+            if (x.getContrasenaNueva() != null && !x.getContrasenaNueva().isBlank() && x.getContrasenaNueva().length() < 8) {
+                throw new ReglaNegocioException("La contraseña debe tener al menos 8 caracteres.");
+            }
+            if (x.getIdUsuario() != null) {
+                boolean quedaAdminActivo = "activo".equals(x.getEstado()) && ADMIN.equals(rolDAO.buscarPorId(x.getIdRol()).getNombre());
+                revisarQuedaAdmin(x.getIdUsuario(), quedaAdminActivo, idUsuarioSesion);
+            }
         // La contraseña nunca se guarda tal cual: se cifra con BCrypt.
         if (x.getContrasenaNueva() != null && !x.getContrasenaNueva().isBlank()) {
             x.setContrasenaCifrada(cifrador.encode(x.getContrasenaNueva()));
@@ -69,9 +85,14 @@ public class UsuarioSistemaServicio {
         }
     }
 
-    /** Eliminar: cambia su estado (Tabla 39 de la Entrega 2). */
+    /** Eliminar: cambia su estado a bloqueado (Tabla 39 de la Entrega 2). */
     public void eliminar(int id) {
+        eliminar(id, null);
+    }
+
+    public void eliminar(int id, Integer idUsuarioSesion) {
         try {
+            revisarQuedaAdmin(id, false, idUsuarioSesion);
             dao.eliminar(id);
         } catch (SQLException e) {
             throw new ReglaNegocioException(MensajesError.traducir(e));
@@ -83,6 +104,40 @@ public class UsuarioSistemaServicio {
             return dao.listarOpciones();
         } catch (SQLException e) {
             throw new ReglaNegocioException(MensajesError.traducir(e));
+        }
+    }
+
+    private static final String ADMIN = "administrador de la plataforma";
+
+    /** El usuario 'id' deja de ser administrador activo (o no): ¿queda alguien para administrar? */
+    private void revisarQuedaAdmin(int id, boolean sigueSiendoAdminActivo, Integer idUsuarioSesion) throws SQLException {
+        if (sigueSiendoAdminActivo) {
+            return;
+        }
+        UsuarioSistema actual = dao.buscarPorId(id);
+        if (actual == null) {
+            throw new ReglaNegocioException("No existe usuario con id " + id + ".");
+        }
+        if (idUsuarioSesion != null && idUsuarioSesion == id) {
+            throw new ReglaNegocioException("No puede bloquearse ni quitarse el rol de administrador a sí mismo: "
+                    + "perdería el acceso. Pídale a otro administrador que lo haga.");
+        }
+        boolean eraAdminActivo = "activo".equals(actual.getEstado())
+                && ADMIN.equals(rolDAO.buscarPorId(actual.getIdRol()).getNombre());
+        if (eraAdminActivo) {
+            long otros = dao.listarTodos().stream()
+                    .filter(u -> u.getIdUsuario() != id && "activo".equals(u.getEstado()))
+                    .filter(u -> {
+                        try {
+                            return ADMIN.equals(rolDAO.buscarPorId(u.getIdRol()).getNombre());
+                        } catch (SQLException e) {
+                            return false;
+                        }
+                    }).count();
+            if (otros == 0) {
+                throw new ReglaNegocioException("«" + actual.getNombreUsuario() + "» es el único administrador activo: "
+                        + "si se bloquea o cambia de rol, nadie podría administrar la plataforma. Cree o active otro administrador primero.");
+            }
         }
     }
 

@@ -39,7 +39,7 @@
       <thead class="table-success"><tr><th th:each="c : ${columnas}" th:text="${#strings.capitalize(#strings.replace(c, '_', ' '))}"></th></tr></thead>
       <tbody><tr th:each="f : ${filas}">
         <td th:each="c : ${columnas}"
-            th:text="${f.get(c) == null ? '' : ((c == 'ingresos' or c == 'valor_total' or c == 'precio_especial') ? '$' + #numbers.formatDecimal(f.get(c), 1, 'POINT', 0, 'COMMA') : f.get(c))}"></td>
+            th:text="${f.get(c) == null ? '' : ((#strings.startsWith(c, 'ingresos') or #strings.startsWith(c, 'valor') or c == 'precio_especial') ? '$' + #numbers.formatDecimal(f.get(c), 1, 'POINT', 0, 'COMMA') : f.get(c))}"></td>
       </tr></tbody>
     </table>
   </div>

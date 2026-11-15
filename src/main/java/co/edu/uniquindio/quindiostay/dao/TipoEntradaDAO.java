@@ -116,6 +116,32 @@ public class TipoEntradaDAO {
         return opciones;
     }
 
+    /** Boletas por tipo de entrada: id -> cuántas filas de Boleta lo usan (para la columna de la lista). */
+    public Map<Integer, Integer> contarBoletasPorTipo() throws SQLException {
+        String sql = "SELECT id_tipo_entrada, COUNT(*) FROM Boleta GROUP BY id_tipo_entrada";
+        Map<Integer, Integer> usos = new LinkedHashMap<>();
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                usos.put(rs.getInt(1), rs.getInt(2));
+            }
+        }
+        return usos;
+    }
+
+    /** Cuántas filas de Boleta usan este registro (si es más de 0, no se puede borrar). */
+    public int contarBoletas(int id) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM Boleta WHERE id_tipo_entrada = ?";
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
     /** Convierte la fila actual del ResultSet en un objeto TipoEntrada. */
     TipoEntrada mapear(ResultSet rs) throws SQLException {
         TipoEntrada x = new TipoEntrada();

@@ -81,8 +81,11 @@ public class AtraccionControlador {
     public String eliminar(@PathVariable int id, HttpSession session, RedirectAttributes redirect) {
         try {
             revisarPermiso(id, session);
-            servicio.eliminar(id);   // si tiene funciones o afiliaciones, MySQL lo impide (RESTRICT)
-            redirect.addFlashAttribute("exito", "Registro eliminado.");
+            SesionUsuario s = Sesiones.de(session);
+            // Sin funciones ni combos se borra junto con su afiliación; si no, el servicio explica qué lo impide.
+            int afiliaciones = servicio.eliminar(id, s.isEncargado() ? s.getIdPrestador() : null);
+            redirect.addFlashAttribute("exito", "Atracción eliminada." + (afiliaciones > 0
+                    ? " También se quitó su afiliación con " + afiliaciones + (afiliaciones == 1 ? " prestador." : " prestadores.") : ""));
         } catch (ReglaNegocioException e) {
             redirect.addFlashAttribute("error", e.getMessage());
         }

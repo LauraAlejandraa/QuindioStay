@@ -6,8 +6,13 @@
 <main class="container py-4">
   <h1 class="h3 mb-3" th:text="${obj.idFuncion == null} ? 'Nuevo registro · función' : 'Editar función #' + ${obj.idFuncion}"></h1>
   <div th:replace="~{fragmentos :: mensajes}"></div>
+  <div th:if="${esFinal}" class="alert alert-info">
+    Esta función está <strong th:text="${estadoGuardado}"></strong>: es un estado final, por eso ya no se puede modificar
+    (ni el estado, ni la fecha, ni el horario). Solo se puede consultar.
+  </div>
   <form th:action="@{/funciones/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
     <input type="hidden" th:field="*{idFuncion}">
+    <fieldset th:disabled="${esFinal}">
     <div class="row">
       <div class="col-md-6 mb-3">
         <label class="form-label" for="fecha">Fecha <span class="text-danger">*</span></label>
@@ -20,18 +25,28 @@
       <div class="col-md-6 mb-3">
         <label class="form-label" for="horaCierre">Hora de cierre <span class="text-danger">*</span></label>
         <input type="time" class="form-control" th:field="*{horaCierre}" required>
+        <div class="form-text">Debe ser al menos 30 minutos después de la hora de apertura.</div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="estado">Estado <span class="text-danger">*</span></label>
-        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${ {'programada', 'cancelada', 'realizada'} }" th:value="${v}" th:text="${v}"></option></select>
+        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${estadosPosibles}" th:value="${v}" th:text="${v}"></option></select>
+        <div class="form-text">Solo aparecen los estados a los que puede pasar desde el estado actual.</div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="idAtraccion">Atracción <span class="text-danger">*</span></label>
         <select class="form-select" th:field="*{idAtraccion}" required><option value="">-- Seleccione --</option><option th:each="o : ${opcAtraccion}" th:value="${o.key}" th:text="${o.value}"></option></select>
       </div>
     </div>
+    </fieldset>
+    <div class="small text-muted mb-3">
+      <div class="fw-semibold">¿Qué significa cada estado?</div>
+      <ul class="mb-0">
+        <li th:each="a : ${ayudaEstados}"><strong th:text="${a.key}"></strong>: <span th:text="${a.value}"></span></li>
+      </ul>
+      <div>Cambios permitidos: programada → realizada (cuando ya terminó) o programada → cancelada (sin boletas vendidas en reservas vivas).</div>
+    </div>
     <div>
-      <button class="btn btn-success">Guardar</button>
+      <button class="btn btn-success" th:unless="${esFinal}">Guardar</button>
       <a class="btn btn-outline-secondary" th:href="@{/funciones}">Volver</a>
     </div>
   </form>

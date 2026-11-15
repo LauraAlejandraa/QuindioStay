@@ -11,11 +11,22 @@
     <div class="row">
       <div class="col-md-6 mb-3">
         <label class="form-label" for="nombre">Nombre <span class="text-danger">*</span></label>
-        <select class="form-select" th:field="*{nombre}" required><option th:each="v : ${ {'adulto', 'niño', 'adulto mayor', 'estudiante'} }" th:value="${v}" th:text="${v}"></option></select>
+        <th:block th:if="${obj.idTipoEntrada == null}">
+          <select class="form-select" th:field="*{nombre}" required>
+            <option value="">— Escoja —</option>
+            <option th:each="v : ${disponibles}" th:value="${v}" th:text="${v}"></option>
+          </select>
+          <div class="form-text">Solo aparecen los tipos que todavía no están creados.</div>
+        </th:block>
+        <th:block th:unless="${obj.idTipoEntrada == null}">
+          <input type="text" class="form-control" th:field="*{nombre}" readonly>
+          <div class="form-text">El nombre no se cambia (la venta lo usa); solo se edita el descuento.</div>
+        </th:block>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="porcentajeDescuento">% de descuento <span class="text-danger">*</span></label>
         <input type="number" class="form-control" th:field="*{porcentajeDescuento}" step="0.01" min="0" max="100" required>
+        <div class="form-text">Se descuenta del precio de la zona. Aplica a las ventas nuevas; lo ya vendido no cambia.</div>
       </div>
     </div>
     <div>

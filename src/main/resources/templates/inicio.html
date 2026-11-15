@@ -12,9 +12,9 @@
     <div class="col-6 col-md-2" th:each="k : ${ {'reservas','pendientes','boletas','clientes','funciones'} }">
       <div class="card card-inicio shadow-sm"><div class="card-body py-2">
         <div class="small text-muted" th:text="${k == 'funciones' ? 'funciones por venir' : (k == 'boletas' ? 'boletas no anuladas' : k)}"></div>
-        <div class="h4 mb-0" th:text="${resumen[k]}"></div></div></div>
+        <div class="h4 mb-0" th:text="${resumen.get(k)}"></div></div></div>
     </div>
-    <div class="col-12 col-md-2">
+    <div class="col-12 col-md-2" th:unless="${sesion.encargado}">
       <div class="card card-inicio shadow-sm"><div class="card-body py-2">
         <div class="small text-muted">pagos exitosos</div>
         <div class="h5 mb-0" th:text="${'$' + #numbers.formatDecimal(resumen.ingresos, 1, 'POINT', 0, 'COMMA')}"></div></div></div>
@@ -25,7 +25,7 @@
     <div class="col-md-4" th:if="${sesion.admin or sesion.operador or sesion.cliente}">
       <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/venta}"><div class="card-body">
         <h2 class="h5 text-dark" th:text="${sesion.cliente} ? 'Comprar boletas' : 'Vender boletas'"></h2>
-        <p class="text-muted mb-0">Escoja la función, la zona y el tipo de entrada. Se revisan el aforo, la regla del niño con adulto y el plan vigente.</p></div></a>
+        <p class="text-muted mb-0">Escoja la función, la zona y el tipo de entrada. Se revisan el aforo, la regla del niño con adulto (o adulto mayor) y el plan vigente.</p></div></a>
     </div>
     <div class="col-md-4" th:if="${sesion.admin or sesion.operador or sesion.cliente}">
       <a class="card card-inicio shadow-sm text-decoration-none h-100" th:href="@{/venta/combo}"><div class="card-body">

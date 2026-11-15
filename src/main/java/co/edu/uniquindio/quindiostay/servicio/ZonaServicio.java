@@ -61,6 +61,13 @@ public class ZonaServicio {
     /** Eliminar: borra la fila (Tabla 39 de la Entrega 2). */
     public void eliminar(int id) {
         try {
+            int boletas = dao.contarBoletas(id);
+            if (boletas > 0) {
+                throw new ReglaNegocioException("No se puede eliminar la zona porque tiene " + boletas
+                        + (boletas == 1 ? " boleta registrada" : " boletas registradas")
+                        + " (vendidas, usadas o anuladas): son el historial de ventas. Si ya no la quiere vender, "
+                        + "puede cancelar la función o dejar la zona como está.");
+            }
             dao.eliminar(id);
         } catch (SQLException e) {
             throw new ReglaNegocioException(MensajesError.traducir(e));
@@ -85,5 +92,44 @@ public class ZonaServicio {
 
     /** Reglas que miran otras tablas u otras filas (no caben en un CHECK). */
     private void validar(Zona x) throws SQLException {
+        if (x.getNombre() == null || x.getNombre().isBlank()) {
+            throw new ReglaNegocioException("El nombre de la zona no puede quedar vacío.");
+        }
+        validarOrdenPrecios(x);
+    }
+
+    /** Orden de las zonas conocidas, de la más barata a la más cara. Otros nombres no entran en la regla. */
+    private static final List<String> ORDEN = List.of("general", "preferencial", "vip");
+
+    /**
+     * En una misma función: General < Preferencial < VIP (precio estrictamente mayor).
+     * Solo compara zonas con esos nombres (sin importar mayúsculas); una zona con otro nombre
+     * (por ejemplo «Palco») no tiene orden fijo y su precio es libre.
+     */
+    private void validarOrdenPrecios(Zona x) throws SQLException {
+        int nivel = ORDEN.indexOf(x.getNombre().trim().toLowerCase());
+        if (nivel < 0 || x.getPrecio() == null || x.getIdFuncion() == null) {
+            return;
+        }
+        for (Zona otra : dao.listarTodos()) {
+            if (!x.getIdFuncion().equals(otra.getIdFuncion()) || otra.getIdZona().equals(x.getIdZona())) {
+                continue;
+            }
+            int nivelOtra = ORDEN.indexOf(otra.getNombre().trim().toLowerCase());
+            if (nivelOtra < 0 || nivelOtra == nivel) {
+                continue;
+            }
+            boolean mal = nivel > nivelOtra ? x.getPrecio().compareTo(otra.getPrecio()) <= 0
+                                            : x.getPrecio().compareTo(otra.getPrecio()) >= 0;
+            if (mal) {
+                throw new ReglaNegocioException("El precio de la zona " + x.getNombre().trim() + " ($" + pesos(x.getPrecio())
+                        + ") debe ser " + (nivel > nivelOtra ? "mayor" : "menor") + " que el de la zona " + otra.getNombre()
+                        + " ($" + pesos(otra.getPrecio()) + ") de la misma función. Orden de precios: General < Preferencial < VIP.");
+            }
+        }
+    }
+
+    private static String pesos(java.math.BigDecimal v) {
+        return String.format("%,.0f", v).replace(',', '.');
     }
 }

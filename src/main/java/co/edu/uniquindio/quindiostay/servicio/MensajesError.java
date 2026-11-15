@@ -27,7 +27,7 @@ public final class MensajesError {
         RESTRICCIONES.put("uq_municipio_dane", "Ya existe un municipio con ese código DANE.");
         RESTRICCIONES.put("uq_tipo_prestador_nombre", "Ya existe un tipo de prestador con ese nombre.");
         RESTRICCIONES.put("uq_rol_nombre", "Ese rol ya existe.");
-        RESTRICCIONES.put("uq_cliente_documento", "Ya existe un cliente con ese tipo y número de documento.");
+        RESTRICCIONES.put("uq_cliente_documento", "Ya existe un cliente con ese número de documento (aunque sea con otro tipo de documento).");
         RESTRICCIONES.put("uq_cliente_email", "Ya existe un cliente con ese correo electrónico.");
         RESTRICCIONES.put("uq_tipo_entrada_nombre", "Ese tipo de entrada ya existe.");
         RESTRICCIONES.put("uq_prestador_nit", "Ya existe un prestador con ese NIT o documento.");
@@ -48,7 +48,7 @@ public final class MensajesError {
         RESTRICCIONES.put("ck_cliente_telefono", "El teléfono solo puede tener dígitos (entre 7 y 15).");
         RESTRICCIONES.put("ck_cliente_numero_doc", "El número de documento no tiene el formato correcto para ese tipo de documento.");
         RESTRICCIONES.put("ck_cliente_nacimiento", "La fecha de nacimiento no es válida (debe ser posterior a 1900 y anterior a hoy).");
-        RESTRICCIONES.put("ck_cliente_edad_doc", "La edad no corresponde al tipo de documento (cédula de ciudadanía desde los 18 años, tarjeta de identidad de 7 a 17).");
+        RESTRICCIONES.put("ck_cliente_edad_doc", "La edad no corresponde al tipo de documento (cédula de ciudadanía desde los 18 años, tarjeta de identidad de 7 a 17, cédula de extranjería o pasaporte desde los 7).");
         RESTRICCIONES.put("ck_tipo_entrada_nombre", "El tipo de entrada debe ser adulto, niño, adulto mayor o estudiante.");
         RESTRICCIONES.put("ck_tipo_entrada_desc", "El porcentaje de descuento debe estar entre 0 y 100.");
         RESTRICCIONES.put("ck_combo_precio", "El precio especial del combo debe ser mayor que 0.");
@@ -61,6 +61,7 @@ public final class MensajesError {
         RESTRICCIONES.put("ck_perfil_anticipacion", "La anticipación del recordatorio debe ser 1, 3 o 7 días.");
         RESTRICCIONES.put("ck_perfil_promociones", "Acepta promociones debe ser sí o no.");
         RESTRICCIONES.put("ck_funcion_horas", "La hora de cierre debe ser posterior a la hora de apertura.");
+        RESTRICCIONES.put("ck_funcion_duracion", "La función debe durar al menos 30 minutos.");
         RESTRICCIONES.put("ck_funcion_estado", "El estado de la función debe ser programada, cancelada o realizada.");
         RESTRICCIONES.put("ck_usuario_estado", "El estado del usuario debe ser activo o bloqueado.");
         RESTRICCIONES.put("ck_plan_tipo", "El tipo de plan debe ser básico, estándar, premium o todo incluido.");
@@ -118,9 +119,10 @@ public final class MensajesError {
             case 3819:
                 return RESTRICCIONES.getOrDefault(restriccion, "Un dato no cumple las reglas de la base de datos.");
             case 1451:
+                // Ej.: "la atracción (tiene funciones registradas)" -> "la atracción porque tiene funciones registradas"
                 String padre = RESTRICCIONES.get(restriccion);
-                return "No se puede eliminar " + (padre != null ? padre : "este registro porque otros datos dependen de él")
-                        + ". La base de datos lo protege con ON DELETE RESTRICT.";
+                return "No se puede eliminar " + (padre != null ? padre.replace(" (", " porque ").replace(")", "")
+                        : "este registro porque otros datos dependen de él") + ".";
             case 1452:
                 return "El registro relacionado que escogió no existe.";
             case 1048:

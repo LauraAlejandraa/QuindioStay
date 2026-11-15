@@ -26,12 +26,19 @@ public class TipoEntradaControlador {
     @GetMapping
     public String listar(Model model) {
         model.addAttribute("lista", servicio.listarTodos());
+        model.addAttribute("usos", servicio.contarUsos());
         cargarOpciones(model);
         return "tipos-entrada/lista";
     }
 
     @GetMapping("/nuevo")
-    public String nuevo(Model model) {
+    public String nuevo(Model model, RedirectAttributes redirect) {
+        if (servicio.nombresDisponibles().isEmpty()) {
+            redirect.addFlashAttribute("error", "Ya existen todos los tipos de entrada permitidos ("
+                    + String.join(", ", TipoEntradaServicio.NOMBRES) + "); no hay ninguno nuevo para registrar. "
+                    + "Para cambiar un descuento use «Editar».");
+            return "redirect:/tipos-entrada";
+        }
         model.addAttribute("obj", new TipoEntrada());
         cargarOpciones(model);
         return "tipos-entrada/formulario";
@@ -75,5 +82,7 @@ public class TipoEntradaControlador {
     }
 
     private void cargarOpciones(Model model) {
+        model.addAttribute("disponibles", servicio.nombresDisponibles());
+        model.addAttribute("todos", TipoEntradaServicio.NOMBRES);
     }
 }

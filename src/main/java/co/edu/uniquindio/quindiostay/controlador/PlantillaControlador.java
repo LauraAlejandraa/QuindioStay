@@ -65,6 +65,18 @@ public class PlantillaControlador {
         if (u.isCliente() && !u.getIdCliente().equals(idCliente)) {
             throw new ReglaNegocioException("Ese documento no es suyo.");
         }
+        if (u.isEncargado()) {
+            // El encargado solo ve la autorización de clientes que tienen reservas con su prestador
+            try {
+                var filas = vistaDAO.consultar("SELECT COUNT(*) AS n FROM Reserva r INNER JOIN Plan pl ON pl.id_plan = r.id_plan "
+                        + "WHERE r.id_cliente = ? AND pl.id_prestador = ?", idCliente, u.getIdPrestador());
+                if (((Number) filas.get(0).get("n")).intValue() == 0) {
+                    throw new ReglaNegocioException("Ese cliente no tiene reservas con su prestador.");
+                }
+            } catch (SQLException e) {
+                throw new ReglaNegocioException("Error de base de datos: " + e.getMessage());
+            }
+        }
         return respuesta(pdf.autorizacionDatos(idCliente), "autorizacion-datos-" + idCliente);
     }
 

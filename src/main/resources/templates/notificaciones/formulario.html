@@ -4,18 +4,25 @@
 <body>
 <nav th:replace="~{fragmentos :: menu}"></nav>
 <main class="container py-4">
-  <h1 class="h3 mb-3" th:text="${obj.idNotificacion == null} ? 'Nuevo registro · notificación' : 'Editar notificación #' + ${obj.idNotificacion}"></h1>
+  <h1 class="h3 mb-3" th:text="${obj.idNotificacion == null} ? 'Nuevo registro · notificación' : (${editable} ? 'Editar notificación #' : 'Notificación #') + ${obj.idNotificacion}"></h1>
   <div th:replace="~{fragmentos :: mensajes}"></div>
+  <div class="alert alert-info" th:unless="${editable}">
+    Esta notificación ya está <strong th:text="${estadoGuardado}"></strong>: es historial y no se puede modificar.
+    Solo se editan las notificaciones <strong>pendientes</strong> o <strong>fallidas</strong>.
+  </div>
   <form th:action="@{/notificaciones/guardar}" th:object="${obj}" method="post" class="card card-body shadow-sm">
     <input type="hidden" th:field="*{idNotificacion}">
+    <fieldset th:disabled="${!editable}">
     <div class="row">
       <div class="col-md-6 mb-3">
         <label class="form-label" for="tipo">Tipo <span class="text-danger">*</span></label>
         <select class="form-select" th:field="*{tipo}" required><option th:each="v : ${ {'recordatorio de reserva', 'confirmación de reserva', 'confirmación de pago', 'cambio de estado', 'promoción'} }" th:value="${v}" th:text="${v}"></option></select>
+        <div class="form-text">Promoción: se escoge un <strong>cliente</strong> y la reserva queda en (ninguno). Los demás tipos: se escoge una <strong>reserva</strong> y el cliente queda en (ninguno), porque es el de la reserva.</div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="canal">Canal <span class="text-danger">*</span></label>
         <select class="form-select" th:field="*{canal}" required><option th:each="v : ${ {'correo', 'SMS', 'WhatsApp'} }" th:value="${v}" th:text="${v}"></option></select>
+        <div class="form-text">Debe ser el canal que el cliente prefiere en su perfil (aparece en la lista de clientes y de reservas).</div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="mensaje">Mensaje <span class="text-danger">*</span></label>
@@ -24,26 +31,32 @@
       <div class="col-md-6 mb-3">
         <label class="form-label" for="fechaProgramada">Fecha programada <span class="text-danger">*</span></label>
         <input type="datetime-local" class="form-control" th:field="*{fechaProgramada}" required>
+        <div class="form-text">Si ya llegó, la aplicación la envía en el siguiente minuto.</div>
       </div>
       <div class="col-md-6 mb-3">
-        <label class="form-label" for="fechaRealEnvio">Fecha real de envío</label>
-        <input type="datetime-local" class="form-control" th:field="*{fechaRealEnvio}">
+        <label class="form-label">Fecha real de envío</label>
+        <input type="text" class="form-control" disabled
+               th:value="${fechaRealGuardada == null ? 'La pone la aplicación al enviarla' : #temporals.format(fechaRealGuardada, 'dd/MM/yyyy HH:mm')}">
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="estado">Estado <span class="text-danger">*</span></label>
-        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${ {'pendiente', 'enviada', 'fallida', 'leída'} }" th:value="${v}" th:text="${v}"></option></select>
+        <select class="form-select" th:field="*{estado}" required><option th:each="v : ${estadosPosibles}" th:value="${v}" th:text="${v}"></option></select>
+        <div class="form-text" th:each="v : ${estadosPosibles}"><strong th:text="${v} + ':'"></strong> <span th:text="${ayudaEstados.get(v)}"></span></div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="idCliente">Cliente (solo promociones)</label>
         <select class="form-select" th:field="*{idCliente}"><option value="">(ninguno)</option><option th:each="o : ${opcCliente}" th:value="${o.key}" th:text="${o.value}"></option></select>
+        <div class="form-text">Solo aparecen los clientes que aceptaron recibir promociones. Para enviarla a todos a la vez use «Enviar promoción».</div>
       </div>
       <div class="col-md-6 mb-3">
         <label class="form-label" for="idReserva">Reserva (los demás tipos)</label>
         <select class="form-select" th:field="*{idReserva}"><option value="">(ninguno)</option><option th:each="o : ${opcReserva}" th:value="${o.key}" th:text="${o.value}"></option></select>
+        <div class="form-text">A una reserva cancelada solo se le envía «cambio de estado».</div>
       </div>
     </div>
+    </fieldset>
     <div>
-      <button class="btn btn-success">Guardar</button>
+      <button class="btn btn-success" th:if="${editable}">Guardar</button>
       <a class="btn btn-outline-secondary" th:href="@{/notificaciones}">Volver</a>
     </div>
   </form>

@@ -26,6 +26,7 @@ public class TipoPrestadorControlador {
     @GetMapping
     public String listar(Model model) {
         model.addAttribute("lista", servicio.listarTodos());
+        model.addAttribute("usos", servicio.contarUsos());
         cargarOpciones(model);
         return "tipos-prestador/lista";
     }

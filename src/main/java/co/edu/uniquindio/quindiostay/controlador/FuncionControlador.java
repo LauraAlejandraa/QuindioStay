@@ -41,15 +41,18 @@ public class FuncionControlador {
         f.setEstado("programada");
         model.addAttribute("obj", f);
         cargarOpciones(session, model);
+        cargarEstados(null, model);
         return "funciones/formulario";
     }
 
     @GetMapping("/{id}/editar")
     public String editar(@PathVariable int id, HttpSession session, Model model) {
+        servicio.marcarRealizadas();   // si ya terminó, se muestra como realizada
         Funcion f = servicio.buscarPorId(id);
         revisarPermiso(f.getIdAtraccion(), session);
         model.addAttribute("obj", f);
         cargarOpciones(session, model);
+        cargarEstados(f, model);
         return "funciones/formulario";
     }
 
@@ -60,13 +63,37 @@ public class FuncionControlador {
             if (resultado.hasErrors()) {
                 throw new ReglaNegocioException("Revise los datos: hay un campo con formato incorrecto.");
             }
+            SesionUsuario s = Sesiones.de(session);
+            if (s.isEncargado()) {
+                if (obj.getIdAtraccion() == null) {
+                    throw new ReglaNegocioException("Escoja la atracción de la función.");
+                }
+                // Si edita una función existente, también debe ser de su prestador
+                // (si no, podría "pasarse" a su atracción una función de otro prestador).
+                if (obj.getIdFuncion() != null) {
+                    revisarPermiso(servicio.buscarPorId(obj.getIdFuncion()).getIdAtraccion(), session);
+                }
+            }
             revisarPermiso(obj.getIdAtraccion(), session);
-            servicio.guardar(obj);
-            redirect.addFlashAttribute("exito", "Guardado correctamente.");
+            servicio.marcarRealizadas();
+            boolean nueva = obj.getIdFuncion() == null;
+            servicio.guardar(obj);   // aquí se revisan las reglas de estado (iguales para admin y encargado)
+            redirect.addFlashAttribute("exito", nueva
+                    ? "Función creada. Para poder venderla, créele al menos una zona con aforo y precio (Boletería → Zonas)."
+                    : "Guardado correctamente.");
             return "redirect:/funciones";
         } catch (ReglaNegocioException e) {
             model.addAttribute("error", e.getMessage());
             cargarOpciones(session, model);
+            Funcion guardada = null;
+            if (obj.getIdFuncion() != null) {
+                try {
+                    guardada = servicio.buscarPorId(obj.getIdFuncion());
+                } catch (ReglaNegocioException ignorada) {
+                    // no existe: se trata como nueva
+                }
+            }
+            cargarEstados(guardada, model);
             return "funciones/formulario";
         }
     }
@@ -81,6 +108,14 @@ public class FuncionControlador {
             redirect.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/funciones";
+    }
+
+    /** Estados que se pueden escoger desde el estado guardado, con la ayuda de qué significa cada uno. */
+    private void cargarEstados(Funcion guardada, Model model) {
+        model.addAttribute("estadosPosibles", servicio.estadosPosibles(guardada));
+        model.addAttribute("ayudaEstados", FuncionServicio.AYUDA_ESTADOS);
+        model.addAttribute("esFinal", servicio.esFinal(guardada));
+        model.addAttribute("estadoGuardado", guardada == null ? null : guardada.getEstado());
     }
 
     private void revisarPermiso(Integer idAtraccion, HttpSession session) {

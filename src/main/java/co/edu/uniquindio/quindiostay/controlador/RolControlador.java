@@ -26,22 +26,27 @@ public class RolControlador {
     @GetMapping
     public String listar(Model model) {
         model.addAttribute("lista", servicio.listarTodos());
+        model.addAttribute("usos", servicio.contarUsos());
         cargarOpciones(model);
         return "roles/lista";
     }
 
     @GetMapping("/nuevo")
-    public String nuevo(Model model) {
+    public String nuevo(Model model, RedirectAttributes redirect) {
+        if (servicio.nombresDisponibles().isEmpty()) {
+            redirect.addFlashAttribute("error", "Los 3 roles de la aplicación ya están creados; no hay ningún rol nuevo para registrar.");
+            return "redirect:/roles";
+        }
         model.addAttribute("obj", new Rol());
         cargarOpciones(model);
         return "roles/formulario";
     }
 
+    /** Los roles no se editan (su nombre decide los permisos): se vuelve a la lista con la explicación. */
     @GetMapping("/{id}/editar")
-    public String editar(@PathVariable int id, Model model) {
-        model.addAttribute("obj", servicio.buscarPorId(id));
-        cargarOpciones(model);
-        return "roles/formulario";
+    public String editar(@PathVariable int id, RedirectAttributes redirect) {
+        redirect.addFlashAttribute("error", RolServicio.MENSAJE_NO_EDITABLE);
+        return "redirect:/roles";
     }
 
     @PostMapping("/guardar")
@@ -75,5 +80,7 @@ public class RolControlador {
     }
 
     private void cargarOpciones(Model model) {
+        model.addAttribute("disponibles", servicio.nombresDisponibles());
+        model.addAttribute("todos", RolServicio.NOMBRES);
     }
 }

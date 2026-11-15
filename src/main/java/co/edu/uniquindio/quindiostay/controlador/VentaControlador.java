@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.*;
 
 /**
@@ -51,8 +50,15 @@ public class VentaControlador {
     }
 
     @GetMapping("/funcion/{id}")
-    public String formulario(@PathVariable int id, HttpSession session, Model model) throws SQLException {
+    public String formulario(@PathVariable int id, HttpSession session, Model model,
+                             RedirectAttributes redirect) throws SQLException {
         Funcion f = funcionServicio.buscarPorId(id);
+        try {
+            ventaServicio.validarFuncionVendible(f);   // terminada, pasada o cancelada: no se abre el formulario
+        } catch (ReglaNegocioException e) {
+            redirect.addFlashAttribute("error", e.getMessage());
+            return "redirect:/venta";
+        }
         model.addAttribute("funcion", f);
         model.addAttribute("atraccion", atraccionServicio.buscarPorId(f.getIdAtraccion()));
         model.addAttribute("zonas", vistaDAO.zonasDeFuncion(id));
@@ -103,7 +109,7 @@ public class VentaControlador {
         }
         model.addAttribute("zonasPorAtraccion", zonasPorAtraccion);
         model.addAttribute("tipos", tipoEntradaServicio.listarTodos());
-        model.addAttribute("planes", vistaDAO.planesParaCombo(id, LocalDate.now()));
+        model.addAttribute("planes", vistaDAO.planesParaCombo(id, Reloj.hoy()));
         cargarCliente(session, model);
         return "venta/formulario-combo";
     }
@@ -115,15 +121,28 @@ public class VentaControlador {
         try {
             Map<Integer, Integer> zonaPorAtraccion = new HashMap<>();
             for (Map.Entry<String, String> e : datos.entrySet()) {
-                if (e.getKey().startsWith("zona_") && !e.getValue().isBlank()) {
-                    zonaPorAtraccion.put(Integer.parseInt(e.getKey().substring(5)), Integer.parseInt(e.getValue()));
+                if (e.getKey().startsWith("zona_") && e.getValue() != null && !e.getValue().isBlank()) {
+                    zonaPorAtraccion.put(entero(e.getKey().substring(5), "Datos de zona inválidos."),
+                            entero(e.getValue(), "Escoja una zona válida."));
                 }
             }
             int idCliente = s.isCliente() ? s.getIdCliente() : entero(datos.get("idCliente"), "Escoja el cliente.");
             String canal = s.isCliente() ? "web" : datos.getOrDefault("canal", "mostrador");
-            int idReserva = ventaServicio.venderCombo(idCliente, canal, id,
-                    entero(datos.get("unidades"), "Escriba las unidades."),
-                    entero(datos.get("idTipoEntrada"), "Escoja el tipo de entrada."),
+            // Unidades por tipo de entrada (unidades_<idTipo>) para poder comprar en la
+            // misma reserva, p. ej., 1 adulto mayor + 1 niño. Si llega el formato
+            // anterior (unidades + idTipoEntrada) también se acepta.
+            Map<Integer, Integer> unidadesPorTipo = new LinkedHashMap<>();
+            for (Map.Entry<String, String> e : datos.entrySet()) {
+                if (e.getKey().startsWith("unidades_") && e.getValue() != null && !e.getValue().isBlank()) {
+                    unidadesPorTipo.put(entero(e.getKey().substring(9), "Datos de tipo de entrada inválidos."),
+                            entero(e.getValue(), "Escriba las unidades con números."));
+                }
+            }
+            if (unidadesPorTipo.isEmpty()) {
+                unidadesPorTipo.put(entero(datos.get("idTipoEntrada"), "Escoja el tipo de entrada."),
+                        entero(datos.get("unidades"), "Escriba las unidades."));
+            }
+            int idReserva = ventaServicio.venderCombo(idCliente, canal, id, unidadesPorTipo,
                     entero(datos.get("idPlan"), "Escoja el plan."), zonaPorAtraccion);
             redirect.addFlashAttribute("exito", "Reserva #" + idReserva + " creada con las boletas del combo.");
             return "redirect:" + (s.isCliente() ? "/mi-cuenta/reservas/" : "/reservas/") + idReserva;
@@ -143,6 +162,10 @@ public class VentaControlador {
         if (valor == null || valor.isBlank()) {
             throw new ReglaNegocioException(mensajeSiFalta);
         }
-        return Integer.parseInt(valor);
+        try {
+            return Integer.parseInt(valor.trim());
+        } catch (NumberFormatException e) {
+            throw new ReglaNegocioException("«" + valor + "» no es un número válido.");
+        }
     }
 }

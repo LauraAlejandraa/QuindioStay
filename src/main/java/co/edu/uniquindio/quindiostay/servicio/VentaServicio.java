@@ -15,7 +15,8 @@ import java.util.*;
  * Venta de boletas (RF04, RF08, RF12). Aquí están las reglas que la base de datos
  * no puede revisar mirando una sola fila:
  *   1. No vender más boletas que el aforo de la zona.
- *   2. No vender boleta de niño sin una de adulto en la misma reserva.
+ *   2. No vender boleta de niño sin una de adulto o de adulto mayor en la misma
+ *      reserva (el adulto mayor también es un adulto; solo cambia el descuento).
  *   3. El plan está activo y vigente en la fecha del servicio, y su prestador
  *      está afiliado a la atracción (o a TODAS las del combo).
  *   4. Cada unidad de combo genera una boleta por cada atracción del combo y
@@ -36,10 +37,13 @@ public class VentaServicio {
     private final ClienteDAO clienteDAO;
     private final VistaDAO vistaDAO;
     private final NotificacionServicio notificaciones;
+    private final EstadoPagoReserva estadoPago;
 
     public VentaServicio(ConexionBD conexionBD, ReservaDAO reservaDAO, BoletaDAO boletaDAO, ZonaDAO zonaDAO,
                          FuncionDAO funcionDAO, TipoEntradaDAO tipoEntradaDAO, ComboDAO comboDAO,
-                         ClienteDAO clienteDAO, VistaDAO vistaDAO, NotificacionServicio notificaciones) {
+                         ClienteDAO clienteDAO, VistaDAO vistaDAO, NotificacionServicio notificaciones,
+                         EstadoPagoReserva estadoPago) {
+        this.estadoPago = estadoPago;
         this.conexionBD = conexionBD;
         this.reservaDAO = reservaDAO;
         this.boletaDAO = boletaDAO;
@@ -78,15 +82,18 @@ public class VentaServicio {
             validarPlan(idPlan, vistaDAO.planesParaVender(funcion.getIdAtraccion(), funcion.getFecha()));
 
             Map<Integer, TipoEntrada> tipos = tiposPorId();
-            // Regla 2: niño solo con adulto en la misma reserva (aquí la reserva es esta compra)
+            // Regla 2: niño solo con adulto o adulto mayor en la misma reserva (aquí la reserva es esta compra)
             int ninos = 0, adultos = 0;
             for (LineaVenta l : conCantidad) {
+                if (tipos.get(l.getIdTipoEntrada()) == null) {
+                    throw new ReglaNegocioException("El tipo de entrada escogido no existe.");
+                }
                 String tipo = tipos.get(l.getIdTipoEntrada()).getNombre();
                 if ("niño".equals(tipo)) ninos += l.getCantidad();
-                if ("adulto".equals(tipo)) adultos += l.getCantidad();
+                if (esAcompanante(tipo)) adultos += l.getCantidad();
             }
             if (ninos > 0 && adultos == 0) {
-                throw new ReglaNegocioException("Una boleta de niño solo se vende si en la misma reserva hay al menos una de adulto.");
+                throw new ReglaNegocioException(MENSAJE_NINO);
             }
 
             try (Connection con = conexionBD.getConexion()) {
@@ -141,6 +148,24 @@ public class VentaServicio {
     // =================================================================
     public int venderCombo(int idCliente, String canal, int idCombo, int unidades, int idTipoEntrada,
                            int idPlan, Map<Integer, Integer> zonaPorAtraccion) {
+        Map<Integer, Integer> unidadesPorTipo = new LinkedHashMap<>();
+        unidadesPorTipo.put(idTipoEntrada, unidades);
+        return venderCombo(idCliente, canal, idCombo, unidadesPorTipo, idPlan, zonaPorAtraccion);
+    }
+
+    /**
+     * Combo con varias clases de entrada en la MISMA compra (p. ej. 1 adulto mayor + 1 niño).
+     * unidadesPorTipo: id del tipo de entrada -> unidades de ese tipo. El precio del combo
+     * es el mismo para todos (el descuento por tipo no aplica al precio especial).
+     */
+    public int venderCombo(int idCliente, String canal, int idCombo, Map<Integer, Integer> unidadesPorTipo,
+                           int idPlan, Map<Integer, Integer> zonaPorAtraccion) {
+        Map<Integer, Integer> pedidas = new LinkedHashMap<>();
+        unidadesPorTipo.forEach((t, u) -> { if (u != null && u > 0) pedidas.put(t, u); });
+        if (unidadesPorTipo.values().stream().anyMatch(u -> u != null && u < 0)) {
+            throw new ReglaNegocioException("Las unidades del combo no pueden ser negativas.");
+        }
+        int unidades = pedidas.values().stream().mapToInt(Integer::intValue).sum();
         if (unidades < 1) {
             throw new ReglaNegocioException("Escoja al menos una unidad del combo.");
         }
@@ -154,25 +179,36 @@ public class VentaServicio {
                 throw new ReglaNegocioException("Un combo debe incluir al menos dos atracciones.");
             }
             validarCliente(idCliente);
-            TipoEntrada tipo = tiposPorId().get(idTipoEntrada);
-            if (tipo == null) {
-                throw new ReglaNegocioException("Escoja el tipo de entrada.");
+            Map<Integer, TipoEntrada> tipos = tiposPorId();
+            int ninos = 0, adultos = 0;
+            for (Map.Entry<Integer, Integer> e : pedidas.entrySet()) {
+                TipoEntrada tipo = tipos.get(e.getKey());
+                if (tipo == null) {
+                    throw new ReglaNegocioException("Escoja el tipo de entrada.");
+                }
+                if ("niño".equals(tipo.getNombre())) ninos += e.getValue();
+                if (esAcompanante(tipo.getNombre())) adultos += e.getValue();
             }
-            if ("niño".equals(tipo.getNombre())) {
-                throw new ReglaNegocioException("Una boleta de niño solo se vende si en la misma reserva hay una de adulto: "
-                        + "compre primero el combo de adulto y luego agregue las de niño a esa reserva.");
+            // Regla 2 también en combos: el niño va con un adulto o adulto mayor de la misma compra
+            if (ninos > 0 && adultos == 0) {
+                throw new ReglaNegocioException("Un combo de niño solo se vende si en la misma compra hay al menos "
+                        + "un combo de adulto o de adulto mayor. Escoja las unidades de cada tipo en el mismo formulario.");
             }
 
             try (Connection con = conexionBD.getConexion()) {
                 con.setAutoCommit(false);
                 try {
                     LocalDate primeraFecha = null;
+                    Set<LocalDate> fechas = new HashSet<>();
                     for (Integer idAtraccion : atracciones) {
                         Integer idZona = zonaPorAtraccion.get(idAtraccion);
                         if (idZona == null) {
                             throw new ReglaNegocioException("Escoja la función y zona de cada atracción del combo.");
                         }
                         Zona z = zonaDAO.buscarPorId(idZona);
+                        if (z == null) {
+                            throw new ReglaNegocioException("La zona escogida no existe.");
+                        }
                         Funcion f = funcionDAO.buscarPorId(z.getIdFuncion());
                         // La boleta del combo debe ser de una atracción del combo (regla de la Entrega 1)
                         if (!f.getIdAtraccion().equals(idAtraccion)) {
@@ -184,18 +220,23 @@ public class VentaServicio {
                             throw new ReglaNegocioException("La zona " + z.getNombre() + " del " + f.getFecha()
                                     + " solo tiene " + cupos + " cupos. No se puede superar el aforo.");
                         }
+                        fechas.add(f.getFecha());
                         if (primeraFecha == null || f.getFecha().isBefore(primeraFecha)) {
                             primeraFecha = f.getFecha();
                         }
                     }
-                    // El plan debe estar vigente en la fecha del servicio (la primera función del combo)
-                    validarPlan(idPlan, vistaDAO.planesParaCombo(idCombo, primeraFecha));
+                    // El plan debe estar vigente en la fecha de CADA función del combo (no solo la primera)
+                    for (LocalDate fecha : fechas) {
+                        validarPlan(idPlan, vistaDAO.planesParaCombo(idCombo, fecha));
+                    }
 
                     BigDecimal total = combo.getPrecioEspecial().multiply(BigDecimal.valueOf(unidades));
                     Reserva r = crearReserva(con, idCliente, canal, idPlan, primeraFecha, total);
-                    for (int u = 0; u < unidades; u++) {
-                        for (Integer idAtraccion : atracciones) {
-                            crearBoleta(con, r.getIdReserva(), zonaPorAtraccion.get(idAtraccion), idTipoEntrada, idCombo);
+                    for (Map.Entry<Integer, Integer> e : pedidas.entrySet()) {
+                        for (int u = 0; u < e.getValue(); u++) {
+                            for (Integer idAtraccion : atracciones) {
+                                crearBoleta(con, r.getIdReserva(), zonaPorAtraccion.get(idAtraccion), e.getKey(), idCombo);
+                            }
                         }
                     }
                     notificaciones.confirmacionReserva(con, r);
@@ -223,6 +264,9 @@ public class VentaServicio {
                     throw new ReglaNegocioException("Solo se agregan boletas a reservas pendientes o confirmadas.");
                 }
                 Zona z = zonaDAO.buscarPorId(idZona);
+                if (z == null) {
+                    throw new ReglaNegocioException("La zona escogida no existe.");
+                }
                 Funcion f = funcionDAO.buscarPorId(z.getIdFuncion());
                 validarFuncionVendible(f);
                 boolean planValido = vistaDAO.planesParaVender(f.getIdAtraccion(), f.getFecha()).stream()
@@ -232,14 +276,19 @@ public class VentaServicio {
                             + "(el prestador no está afiliado o el plan no está vigente).");
                 }
                 TipoEntrada tipo = tiposPorId().get(idTipoEntrada);
-                if ("niño".equals(tipo.getNombre()) && boletaDAO.contarPorTipo(con, idReserva, "adulto") == 0) {
-                    throw new ReglaNegocioException("Una boleta de niño solo se vende si en la misma reserva hay al menos una de adulto.");
+                if (tipo == null) {
+                    throw new ReglaNegocioException("Escoja el tipo de entrada.");
+                }
+                if ("niño".equals(tipo.getNombre()) && boletaDAO.contarAcompanantes(con, idReserva) == 0) {
+                    throw new ReglaNegocioException(MENSAJE_NINO);
                 }
                 if (zonaDAO.cuposDisponibles(con, idZona) < 1) {
                     throw new ReglaNegocioException("La zona " + z.getNombre() + " ya está llena (aforo " + z.getAforo() + ").");
                 }
                 crearBoleta(con, idReserva, idZona, idTipoEntrada, null);
                 reservaDAO.sumarValor(con, idReserva, valorBoleta(z.getPrecio(), tipo.getPorcentajeDescuento()));
+                // Si estaba confirmada (pagada), ahora falta pagar la boleta nueva: vuelve a pendiente.
+                estadoPago.sincronizar(con, idReserva);
                 con.commit();
             } catch (SQLException | RuntimeException e) {
                 con.rollback();
@@ -251,10 +300,18 @@ public class VentaServicio {
     }
 
     // ------------------------------------------------------------------
+    static final String MENSAJE_NINO = "Una boleta de niño solo se vende si en la misma reserva hay al menos "
+            + "una de adulto o de adulto mayor.";
+
+    /** Tipos de entrada que pueden acompañar a un niño: adulto y adulto mayor. */
+    public static boolean esAcompanante(String tipo) {
+        return "adulto".equals(tipo) || "adulto mayor".equals(tipo);
+    }
+
     private Reserva crearReserva(Connection con, int idCliente, String canal, int idPlan,
                                  LocalDate fechaServicio, BigDecimal total) throws SQLException {
         Reserva r = new Reserva();
-        r.setFechaCreacion(LocalDate.now());
+        r.setFechaCreacion(Reloj.hoy());
         r.setFechaServicio(fechaServicio);
         r.setEstado("pendiente");                 // pasa a confirmada cuando se paga completa
         r.setValorTotal(total);                   // precio congelado (Entrega 2)
@@ -278,15 +335,28 @@ public class VentaServicio {
         boletaDAO.cambiarCodigo(con, id, String.format("QS-%06d", id));
     }
 
-    private void validarFuncionVendible(Funcion f) {
+    /**
+     * Una función se vende solo si está programada y todavía no ha terminado
+     * (fecha futura, o de hoy con la hora de cierre aún por llegar, hora de Colombia).
+     */
+    public void validarFuncionVendible(Funcion f) {
         if (f == null) {
             throw new ReglaNegocioException("La función no existe.");
         }
+        if ("cancelada".equals(f.getEstado())) {
+            throw new ReglaNegocioException("La función del " + f.getFecha() + " está cancelada: no se venden boletas.");
+        }
+        // Primero la fecha/hora: una función que ya terminó pasa sola a 'realizada',
+        // y el motivo que le sirve al usuario es que ya pasó o ya terminó.
+        if (f.getFecha().isBefore(Reloj.hoy())) {
+            throw new ReglaNegocioException("La función del " + f.getFecha() + " ya pasó.");
+        }
+        if (Reloj.yaTermino(f.getFecha(), f.getHoraCierre())) {
+            throw new ReglaNegocioException("La función de hoy (" + f.getHoraApertura() + " a " + f.getHoraCierre()
+                    + ") ya terminó: no se venden boletas para ella. Escoja otra función.");
+        }
         if (!"programada".equals(f.getEstado())) {
             throw new ReglaNegocioException("La función del " + f.getFecha() + " está " + f.getEstado() + ": no se venden boletas.");
-        }
-        if (f.getFecha().isBefore(LocalDate.now())) {
-            throw new ReglaNegocioException("La función del " + f.getFecha() + " ya pasó.");
         }
     }
 

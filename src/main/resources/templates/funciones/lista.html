@@ -8,6 +8,8 @@
     <h1 class="h3 mb-0">Funciones</h1>
     <a class="btn btn-success" th:href="@{/funciones/nuevo}">+ Nuevo</a>
   </div>
+  <p class="small text-muted">Las funciones programadas pasan solas a <strong>realizada</strong> cuando llega su hora de cierre.
+    Realizada y cancelada son estados finales.</p>
   <div th:replace="~{fragmentos :: mensajes}"></div>
   <input class="form-control mb-2 buscador" placeholder="Buscar en la tabla..." data-tabla="tabla">
   <div class="table-responsive">
@@ -22,10 +24,11 @@
           <td th:text="${#temporals.format(x.horaApertura, 'HH:mm')}"></td>
           <td th:text="${#temporals.format(x.horaCierre, 'HH:mm')}"></td>
           <td><span class="badge estado" th:text="${x.estado}"></span></td>
-          <td th:text="${x.idAtraccion == null ? '' : opcAtraccion[x.idAtraccion]}"></td>
+          <td th:text="${x.idAtraccion == null ? '' : opcAtraccion.get(x.idAtraccion)}"></td>
           <td class="text-end text-nowrap">
-            <a class="btn btn-sm btn-outline-primary" th:href="@{/funciones/{id}/editar(id=${x.idFuncion})}">Editar</a>
-            <form th:if="${x.estado != 'cancelada'}" th:action="@{/funciones/{id}/eliminar(id=${x.idFuncion})}" method="post" class="d-inline"
+            <a class="btn btn-sm btn-outline-primary" th:href="@{/funciones/{id}/editar(id=${x.idFuncion})}"
+               th:text="${x.estado == 'programada'} ? 'Editar' : 'Ver'">Editar</a>
+            <form th:if="${x.estado == 'programada'}" th:action="@{/funciones/{id}/eliminar(id=${x.idFuncion})}" method="post" class="d-inline"
                   onsubmit="return confirm('¿Seguro? Esta acción: cancelar.');">
               <button class="btn btn-sm btn-outline-danger">Cancelar</button>
             </form>

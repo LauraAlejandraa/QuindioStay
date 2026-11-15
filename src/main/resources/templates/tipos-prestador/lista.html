@@ -9,16 +9,21 @@
     <a class="btn btn-success" th:href="@{/tipos-prestador/nuevo}">+ Nuevo</a>
   </div>
   <div th:replace="~{fragmentos :: mensajes}"></div>
+  <div class="alert alert-info">
+    Los tipos de prestador son una lista abierta: se pueden crear, editar y eliminar libremente.
+    La única condición para eliminar uno es que <strong>ningún prestador</strong> sea de ese tipo (columna «Prestadores» en 0).
+  </div>
   <input class="form-control mb-2 buscador" placeholder="Buscar en la tabla..." data-tabla="tabla">
   <div class="table-responsive">
     <table id="tabla" class="table table-sm table-hover align-middle tabla-paginada">
       <thead class="table-success">
-        <tr><th>ID</th><th>Nombre</th><th class="text-end">Acciones</th></tr>
+        <tr><th>ID</th><th>Nombre</th><th>Prestadores</th><th class="text-end">Acciones</th></tr>
       </thead>
       <tbody>
         <tr th:each="x : ${lista}">
           <td th:text="${x.idTipoPrestador}"></td>
           <td th:text="${x.nombre}"></td>
+          <td th:text="${usos.get(x.idTipoPrestador) ?: 0}"></td>
           <td class="text-end text-nowrap">
             <a class="btn btn-sm btn-outline-primary" th:href="@{/tipos-prestador/{id}/editar(id=${x.idTipoPrestador})}">Editar</a>
             <form th:action="@{/tipos-prestador/{id}/eliminar(id=${x.idTipoPrestador})}" method="post" class="d-inline"

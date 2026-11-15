@@ -9,6 +9,7 @@
     <a class="btn btn-success" th:href="@{/cuentas/nuevo}">+ Nuevo</a>
   </div>
   <div th:replace="~{fragmentos :: mensajes}"></div>
+  <p class="small text-muted mb-2">Eliminar una cuenta quita el acceso (correo y contraseña), no al cliente. No se permite si el cliente tiene reservas pendientes o confirmadas; si todas terminaron (completadas o canceladas), sí, y su historial se conserva.</p>
   <input class="form-control mb-2 buscador" placeholder="Buscar en la tabla..." data-tabla="tabla">
   <div class="table-responsive">
     <table id="tabla" class="table table-sm table-hover align-middle tabla-paginada">
@@ -22,7 +23,7 @@
           <td class="text-end text-nowrap">
             <a class="btn btn-sm btn-outline-primary" th:href="@{/cuentas/{id}/editar(id=${x.idCuenta})}">Editar</a>
             <form th:action="@{/cuentas/{id}/eliminar(id=${x.idCuenta})}" method="post" class="d-inline"
-                  onsubmit="return confirm('¿Seguro? Esta acción: eliminar.');">
+                  onsubmit="return confirm('¿Eliminar esta cuenta? El cliente ya no podrá iniciar sesión; sus datos e historial se conservan.');">
               <button class="btn btn-sm btn-outline-danger">Eliminar</button>
             </form>
           </td>

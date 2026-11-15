@@ -8,7 +8,7 @@
     <h1 class="h4">No se pudo completar la operación</h1>
     <p class="mb-0" th:text="${mensaje}"></p>
   </div>
-  <a class="btn btn-outline-secondary" href="javascript:history.back()">Volver</a>
+  <a class="btn btn-outline-secondary" th:href="${urlVolver != null ? urlVolver : '/inicio'}">Volver</a>
   <a class="btn btn-success" th:href="@{/inicio}">Ir al inicio</a>
 </main>
 <th:block th:replace="~{fragmentos :: scripts}"></th:block>

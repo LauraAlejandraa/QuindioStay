@@ -114,6 +114,32 @@ public class RolDAO {
         return opciones;
     }
 
+    /** Usuarios por rol: id -> cuántas filas de Usuario_sistema lo usan (para la columna de la lista). */
+    public Map<Integer, Integer> contarUsuariosPorRol() throws SQLException {
+        String sql = "SELECT id_rol, COUNT(*) FROM Usuario_sistema GROUP BY id_rol";
+        Map<Integer, Integer> usos = new LinkedHashMap<>();
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                usos.put(rs.getInt(1), rs.getInt(2));
+            }
+        }
+        return usos;
+    }
+
+    /** Cuántas filas de Usuario_sistema usan este registro (si es más de 0, no se puede borrar). */
+    public int contarUsuarios(int id) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM Usuario_sistema WHERE id_rol = ?";
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
     /** Convierte la fila actual del ResultSet en un objeto Rol. */
     Rol mapear(ResultSet rs) throws SQLException {
         Rol x = new Rol();

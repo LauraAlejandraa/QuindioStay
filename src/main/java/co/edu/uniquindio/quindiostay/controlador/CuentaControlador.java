@@ -69,8 +69,7 @@ public class CuentaControlador {
     @PostMapping("/{id}/eliminar")
     public String eliminar(@PathVariable int id, RedirectAttributes redirect) {
         try {
-            servicio.eliminar(id);
-            redirect.addFlashAttribute("exito", "Registro eliminado.");
+            redirect.addFlashAttribute("exito", servicio.eliminar(id));
         } catch (ReglaNegocioException e) {
             redirect.addFlashAttribute("error", e.getMessage());
         }

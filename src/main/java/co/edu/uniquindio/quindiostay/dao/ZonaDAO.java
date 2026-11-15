@@ -97,6 +97,18 @@ public class ZonaDAO {
     }
 
     /** Borra la fila. Si otra tabla depende de ella, MySQL responde con el error 1451 (RESTRICT). */
+    /** Cuántas boletas (vendidas, usadas o anuladas) tiene la zona: son historial de ventas. */
+    public int contarBoletas(int id) throws SQLException {
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement("SELECT COUNT(*) FROM Boleta WHERE id_zona = ?")) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
     public void eliminar(int id) throws SQLException {
         String sql = "DELETE FROM Zona WHERE id_zona = ?";
         try (Connection con = conexionBD.getConexion();

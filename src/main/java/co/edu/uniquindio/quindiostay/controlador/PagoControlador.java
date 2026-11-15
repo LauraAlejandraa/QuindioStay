@@ -4,6 +4,7 @@ import co.edu.uniquindio.quindiostay.modelo.Pago;
 import co.edu.uniquindio.quindiostay.servicio.ReservaServicio;
 import co.edu.uniquindio.quindiostay.servicio.PagoServicio;
 import co.edu.uniquindio.quindiostay.servicio.ReglaNegocioException;
+import co.edu.uniquindio.quindiostay.servicio.Reloj;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -35,7 +36,9 @@ public class PagoControlador {
 
     @GetMapping("/nuevo")
     public String nuevo(Model model) {
-        model.addAttribute("obj", new Pago());
+        Pago nuevo = new Pago();
+        nuevo.setFecha(Reloj.hoy());   // un pago siempre se registra con la fecha de hoy
+        model.addAttribute("obj", nuevo);
         cargarOpciones(model);
         return "pagos/formulario";
     }

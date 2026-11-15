@@ -144,6 +144,24 @@ public class ClienteDAO {
         }
     }
 
+    /**
+     * ¿Otro cliente ya usa ese número de documento? Se compara SOLO el número,
+     * sin importar el tipo: una persona conserva su número al pasar de tarjeta
+     * de identidad a cédula. idExcluir es el propio cliente al editar (o null).
+     */
+    public boolean existeNumeroDocumento(String numero, Integer idExcluir) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM Cliente WHERE numero_documento = ? AND id_cliente <> ?";
+        try (Connection con = conexionBD.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, numero);
+            ps.setInt(2, idExcluir == null ? -1 : idExcluir);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1) > 0;
+            }
+        }
+    }
+
     /** ¿Tiene reservas? (Tabla 39: el cliente solo se borra si no tiene reservas). */
     public int contarReservas(int idCliente) throws SQLException {
         String sql = "SELECT COUNT(*) FROM Reserva WHERE id_cliente = ?";
@@ -153,6 +171,56 @@ public class ClienteDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 return rs.getInt(1);
+            }
+        }
+    }
+
+    /**
+     * Historial del cliente para decidir si se puede eliminar él o su cuenta:
+     * reservas por estado (pendiente, confirmada, completada, cancelada), número de
+     * reservas vivas (pendiente/confirmada) con sus ids, total pagado (exitoso o
+     * reembolsado) y notificaciones (de promoción o de sus reservas).
+     */
+    public Map<String, Object> historial(int idCliente) throws SQLException {
+        Map<String, Object> h = new LinkedHashMap<>();
+        try (Connection con = conexionBD.getConexion()) {
+            Map<String, Integer> porEstado = new LinkedHashMap<>();
+            for (String e : List.of("pendiente", "confirmada", "completada", "cancelada")) {
+                porEstado.put(e, 0);
+            }
+            List<String> vivas = new ArrayList<>();
+            try (PreparedStatement ps = con.prepareStatement(
+                    "SELECT id_reserva, estado FROM Reserva WHERE id_cliente = ? ORDER BY id_reserva")) {
+                ps.setInt(1, idCliente);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String e = rs.getString("estado");
+                        porEstado.merge(e, 1, Integer::sum);
+                        if ("pendiente".equals(e) || "confirmada".equals(e)) {
+                            vivas.add("#" + rs.getInt("id_reserva") + " " + e);
+                        }
+                    }
+                }
+            }
+            h.put("porEstado", porEstado);
+            h.put("reservas", porEstado.values().stream().mapToInt(Integer::intValue).sum());
+            h.put("vivas", vivas);
+            h.put("pagado", escalar(con, "SELECT COALESCE(SUM(p.monto), 0) FROM Pago p INNER JOIN Reserva r ON r.id_reserva = p.id_reserva "
+                    + "WHERE r.id_cliente = ? AND p.estado IN ('exitoso', 'reembolsado')", idCliente));
+            h.put("notificaciones", ((Number) escalar(con, "SELECT COUNT(*) FROM Notificacion n LEFT JOIN Reserva r ON r.id_reserva = n.id_reserva "
+                    + "WHERE n.id_cliente = ? OR r.id_cliente = ?", idCliente, idCliente)).intValue());
+        }
+        return h;
+    }
+
+    private Object escalar(Connection con, String sql, Object... params) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getObject(1);
             }
         }
     }

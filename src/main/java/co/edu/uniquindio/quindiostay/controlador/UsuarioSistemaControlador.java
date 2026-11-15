@@ -51,7 +51,7 @@ public class UsuarioSistemaControlador {
     }
 
     @PostMapping("/guardar")
-    public String guardar(@ModelAttribute("obj") UsuarioSistema obj, BindingResult resultado,
+    public String guardar(@ModelAttribute("obj") UsuarioSistema obj, BindingResult resultado, jakarta.servlet.http.HttpSession session,
                           Model model, RedirectAttributes redirect) {
         if (resultado.hasErrors()) {
             model.addAttribute("error", "Revise los datos: hay un campo con formato incorrecto.");
@@ -59,7 +59,7 @@ public class UsuarioSistemaControlador {
             return "usuarios/formulario";
         }
         try {
-            servicio.guardar(obj);
+            servicio.guardar(obj, Sesiones.de(session).getIdUsuario());
             redirect.addFlashAttribute("exito", "Guardado correctamente.");
             return "redirect:/usuarios";
         } catch (ReglaNegocioException e) {
@@ -70,9 +70,9 @@ public class UsuarioSistemaControlador {
     }
 
     @PostMapping("/{id}/eliminar")
-    public String eliminar(@PathVariable int id, RedirectAttributes redirect) {
+    public String eliminar(@PathVariable int id, jakarta.servlet.http.HttpSession session, RedirectAttributes redirect) {
         try {
-            servicio.eliminar(id);
+            servicio.eliminar(id, Sesiones.de(session).getIdUsuario());
             redirect.addFlashAttribute("exito", "El usuario quedó bloqueado.");
         } catch (ReglaNegocioException e) {
             redirect.addFlashAttribute("error", e.getMessage());

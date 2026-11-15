@@ -58,8 +58,11 @@ CREATE TABLE Rol (
 -- ---------------------------------------------------------------------
 
 -- Cliente: personas que hacen reservas. Puede existir sin cuenta (si se
--- registró en el mostrador). El par tipo + número de documento no se
--- repite, y el correo tampoco.
+-- registró en el mostrador). El número de documento no se repite, sin
+-- importar el tipo: una persona que pasa de tarjeta de identidad a cédula
+-- conserva el mismo número, así que dos clientes con el mismo número
+-- serían la misma persona (ajuste de la Parte B, 15/11/2026). El correo
+-- tampoco se repite.
 -- segundo_nombre y segundo_apellido son opcionales (muchos clientes,
 -- sobre todo extranjeros, no tienen).
 -- fecha_registro: el día en que el cliente se registró. Por defecto es
@@ -80,7 +83,7 @@ CREATE TABLE Cliente (
     ciudad_origen VARCHAR(60) NOT NULL,
     fecha_registro DATE NOT NULL DEFAULT (CURRENT_DATE),
     CONSTRAINT pk_cliente PRIMARY KEY (id_cliente),
-    CONSTRAINT uq_cliente_documento UNIQUE (tipo_documento, numero_documento),
+    CONSTRAINT uq_cliente_documento UNIQUE (numero_documento),
     CONSTRAINT uq_cliente_email UNIQUE (email),
     CONSTRAINT ck_cliente_tipo_doc CHECK (tipo_documento IN ('cédula de ciudadanía',
                                                               'cédula de extranjería',
@@ -98,13 +101,17 @@ CREATE TABLE Cliente (
     CONSTRAINT ck_cliente_nacimiento CHECK (fecha_nacimiento >= '1900-01-01'
 	AND fecha_nacimiento < fecha_registro),
     -- La edad debe corresponder al documento: cédula de ciudadanía desde
-    -- los 18 años y tarjeta de identidad de los 7 a los 17 (edad cumplida
-    -- el día del registro). TIMESTAMPDIFF(YEAR, a, b) = años cumplidos.
+    -- los 18 años, tarjeta de identidad de los 7 a los 17, y cédula de
+    -- extranjería o pasaporte desde los 7 (edad cumplida el día del
+    -- registro). Nadie menor de 7 años es cliente: un niño pequeño entra
+    -- con una boleta de niño en la reserva de un adulto.
+    -- TIMESTAMPDIFF(YEAR, a, b) = años cumplidos.
     CONSTRAINT ck_cliente_edad_doc CHECK ((tipo_documento = 'cédula de ciudadanía'
 	AND TIMESTAMPDIFF(YEAR, fecha_nacimiento, fecha_registro) >= 18)
      OR (tipo_documento = 'tarjeta de identidad'
 AND TIMESTAMPDIFF(YEAR, fecha_nacimiento, fecha_registro) BETWEEN 7 AND 17)
-     OR tipo_documento IN ('cédula de extranjería', 'pasaporte'))
+     OR (tipo_documento IN ('cédula de extranjería', 'pasaporte')
+AND TIMESTAMPDIFF(YEAR, fecha_nacimiento, fecha_registro) >= 7))
 ) COMMENT = 'Clientes de la plataforma, con o sin cuenta';
 
 -- Atraccion: parques, museos, jardines o festivales que venden entradas.
@@ -218,7 +225,8 @@ CREATE TABLE Perfil_cliente (
 ) COMMENT = 'Preferencias de notificación de cada cliente';
 
 -- Funcion: cada fecha y horario en que abre una atracción.
--- La hora de cierre es posterior a la de apertura.
+-- La hora de cierre es posterior a la de apertura y la función dura al
+-- menos 30 minutos (ADDTIME suma 30 minutos a la hora de apertura).
 -- Una función no se borra: se cancela (estado 'cancelada').
 CREATE TABLE Funcion (
     id_funcion INT NOT NULL AUTO_INCREMENT,
@@ -229,6 +237,7 @@ CREATE TABLE Funcion (
     id_atraccion INT NOT NULL,
     CONSTRAINT pk_funcion PRIMARY KEY (id_funcion),
     CONSTRAINT ck_funcion_horas CHECK (hora_cierre > hora_apertura),
+    CONSTRAINT ck_funcion_duracion CHECK (hora_cierre >= ADDTIME(hora_apertura, '00:30:00')),
     CONSTRAINT ck_funcion_estado CHECK (estado IN ('programada', 'cancelada', 'realizada')),
     -- RESTRICT: se conserva la historia de funciones de cada atracción
     CONSTRAINT fk_funcion_atraccion
@@ -332,7 +341,9 @@ CREATE TABLE Prestador_atraccion (
 
 -- Zona: localidades de una función (general, preferencial, VIP), cada
 -- una con su aforo y su precio. Dentro de una función, el nombre de
--- zona no se repite.
+-- zona no se repite (sin distinguir mayúsculas, por la intercalación _ci).
+-- Regla que mira otras filas y valida la aplicación: en la misma función
+-- el precio va General < Preferencial < VIP.
 CREATE TABLE Zona (
     id_zona INT NOT NULL AUTO_INCREMENT,
     nombre VARCHAR(30) NOT NULL,
@@ -359,8 +370,9 @@ CREATE TABLE Zona (
 -- El prestador se conoce por el plan (no se guarda aquí: 3FN).
 -- Una reserva cancelada no se borra: queda como historial.
 -- Reglas que miran otras tablas y valida la aplicación: el plan debe
--- estar activo y vigente en la fecha del servicio, y una reserva solo
--- pasa a 'completada' si antes estuvo 'confirmada'.
+-- estar activo y vigente en la fecha del servicio; una reserva está
+-- 'confirmada' solo si sus pagos exitosos cubren el valor total, y pasa
+-- a 'completada' cuando está pagada y ya no le quedan boletas por usar.
 CREATE TABLE Reserva (
     id_reserva INT NOT NULL AUTO_INCREMENT,
     fecha_creacion DATE NOT NULL DEFAULT (CURRENT_DATE),
@@ -463,7 +475,7 @@ CREATE TABLE Notificacion (
 -- id_combo es NULL si la boleta se vendió suelta.
 -- Una boleta no se borra: se anula. Reglas que miran otras filas y
 -- valida la aplicación: no superar el aforo de la zona, una entrada de
--- niño solo con una de adulto en la misma reserva, y una boleta usada
+-- niño solo con una de adulto o adulto mayor en la misma reserva, y una boleta usada
 -- o anulada no vuelve a 'vendida'.
 CREATE TABLE Boleta (
     id_boleta INT NOT NULL AUTO_INCREMENT,

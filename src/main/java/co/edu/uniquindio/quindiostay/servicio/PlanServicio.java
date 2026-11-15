@@ -85,5 +85,11 @@ public class PlanServicio {
 
     /** Reglas que miran otras tablas u otras filas (no caben en un CHECK). */
     private void validar(Plan x) throws SQLException {
+        if (x.getNombre() == null || x.getNombre().isBlank()) {
+            throw new ReglaNegocioException("El nombre del plan no puede quedar vacío.");
+        }
+        if (x.getDescripcion() == null || x.getDescripcion().isBlank()) {
+            throw new ReglaNegocioException("La descripción del plan no puede quedar vacía.");
+        }
     }
 }
